@@ -1,0 +1,114 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { DynamoDBService } from '../../database/dynamodb.service';
+
+@Injectable()
+export class StockMovementsService {
+  private readonly logger = new Logger(StockMovementsService.name);
+  private readonly tableName = 'grove_system_stock_movements';
+
+  constructor(private readonly dynamoDBService: DynamoDBService) {}
+
+  async findAll() {
+    const result = await this.dynamoDBService.scan(this.tableName);
+    return result.items;
+  }
+
+  async findByInventoryItem(inventoryItemId: string) {
+    const result = await this.dynamoDBService.query(
+      this.tableName,
+      'inventoryItemId = :inventoryItemId',
+      { '#inventoryItemId': 'inventoryItemId' },
+      { ':inventoryItemId': inventoryItemId },
+    );
+    
+    return result.items;
+  }
+
+  async findByDateRange(startDate: string, endDate: string) {
+    const result = await this.dynamoDBService.scan(this.tableName);
+    
+    return result.items.filter(movement => {
+      const movementDate = movement.movementDate;
+      return movementDate >= startDate && movementDate <= endDate;
+    });
+  }
+
+  async findByType(type: string) {
+    const result = await this.dynamoDBService.scan(this.tableName);
+    return result.items.filter(movement => movement.type === type);
+  }
+
+  async getMovementsSummary(startDate: string, endDate: string) {
+    const movements = await this.findByDateRange(startDate, endDate);
+    
+    const summary = {
+      totalMovements: movements.length,
+      byType: {} as Record<string, number>,
+      totalQuantity: 0,
+      totalValue: 0,
+    };
+
+    for (const movement of movements) {
+      // Contar por tipo
+      summary.byType[movement.type] = (summary.byType[movement.type] || 0) + 1;
+      
+      // Sumar cantidades
+      summary.totalQuantity += movement.quantity;
+      
+      // Sumar valor si existe unitCost
+      if (movement.unitCost) {
+        summary.totalValue += movement.quantity * movement.unitCost;
+      }
+    }
+
+    return summary;
+  }
+
+  async getInventoryItemHistory(inventoryItemId: string, limit = 50) {
+    const movements = await this.findByInventoryItem(inventoryItemId);
+    
+    // Ordenar por fecha descendente
+    const sortedMovements = [...movements].sort((a, b) => 
+      new Date(b.movementDate).getTime() - new Date(a.movementDate).getTime()
+    );
+    
+    return sortedMovements.slice(0, limit);
+  }
+
+  async getTopMovingItems(days = 30, limit = 10) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const movements = await this.findByDateRange(
+      startDate.toISOString(),
+      new Date().toISOString()
+    );
+
+    const itemMovements = movements.reduce((acc, movement) => {
+      const itemId = movement.inventoryItemId;
+      if (!acc[itemId]) {
+        acc[itemId] = {
+          inventoryItemId: itemId,
+          totalQuantity: 0,
+          movementCount: 0,
+          lastMovement: movement.movementDate,
+        };
+      }
+      
+      acc[itemId].totalQuantity += movement.quantity;
+      acc[itemId].movementCount += 1;
+      
+      if (movement.movementDate > acc[itemId].lastMovement) {
+        acc[itemId].lastMovement = movement.movementDate;
+      }
+      
+      return acc;
+    }, {} as Record<string, any>);
+
+    const topItems = Object.values(itemMovements)
+      .sort((a: any, b: any) => b.totalQuantity - a.totalQuantity)
+      .slice(0, limit);
+
+    return topItems;
+  }
+}

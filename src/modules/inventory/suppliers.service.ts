@@ -1,0 +1,117 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { DynamoDBService } from '../../database/dynamodb.service';
+import { EntityNotFoundException } from '../../common/exceptions/business.exception';
+import { CreateSupplierDto, UpdateSupplierDto } from './dto/inventory.dto';
+import { v4 as uuidv4 } from 'uuid';
+
+@Injectable()
+export class SuppliersService {
+  private readonly logger = new Logger(SuppliersService.name);
+  private readonly tableName = 'grove_system_suppliers';
+
+  constructor(private readonly dynamoDBService: DynamoDBService) {}
+
+  async findAll() {
+    const result = await this.dynamoDBService.scan(this.tableName);
+    return result.items;
+  }
+
+  async findActive() {
+    const result = await this.dynamoDBService.scan(this.tableName);
+    return result.items.filter(supplier => supplier.isActive !== false);
+  }
+
+  async findOne(id: string) {
+    const supplier = await this.dynamoDBService.get(this.tableName, { id });
+    if (!supplier) {
+      throw new EntityNotFoundException('Proveedor', id);
+    }
+    return supplier;
+  }
+
+  async create(createSupplierDto: CreateSupplierDto) {
+    const newSupplier = {
+      id: uuidv4(),
+      ...createSupplierDto,
+      isActive: true,
+      totalOrders: 0,
+      totalAmount: 0,
+      lastOrderDate: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await this.dynamoDBService.put(this.tableName, newSupplier);
+    this.logger.log(`New supplier created: ${newSupplier.name}`);
+    
+    return newSupplier;
+  }
+
+  async update(id: string, updateSupplierDto: UpdateSupplierDto) {
+    await this.findOne(id); // Verificar que existe
+
+    let updateExpression = 'SET #updatedAt = :updatedAt';
+    const expressionAttributeNames = { '#updatedAt': 'updatedAt' };
+    const expressionAttributeValues = { ':updatedAt': new Date().toISOString() };
+
+    // Agregar campos a actualizar dinámicamente
+    for (const [key, value] of Object.entries(updateSupplierDto)) {
+      const attributeName = `#${key}`;
+      const attributeValue = `:${key}`;
+      
+      updateExpression += `, ${attributeName} = ${attributeValue}`;
+      expressionAttributeNames[attributeName] = key;
+      expressionAttributeValues[attributeValue] = value;
+    }
+
+    const updatedSupplier = await this.dynamoDBService.update(
+      this.tableName,
+      { id },
+      updateExpression,
+      expressionAttributeNames,
+      expressionAttributeValues,
+    );
+
+    this.logger.log(`Supplier updated: ${id}`);
+    return updatedSupplier;
+  }
+
+  async remove(id: string) {
+    await this.findOne(id); // Verificar que existe
+    await this.dynamoDBService.delete(this.tableName, { id });
+    this.logger.log(`Supplier removed: ${id}`);
+    return { message: 'Proveedor eliminado correctamente' };
+  }
+
+  async updateOrderStats(supplierId: string, orderAmount: number) {
+    const supplier = await this.findOne(supplierId);
+    
+    const updatedSupplier = await this.update(supplierId, {
+      totalOrders: supplier.totalOrders + 1,
+      totalAmount: supplier.totalAmount + orderAmount,
+      lastOrderDate: new Date().toISOString(),
+    });
+
+    return updatedSupplier;
+  }
+
+  async getTopSuppliersByVolume(limit = 10) {
+    const allSuppliers = await this.findAll();
+    
+    const sortedSuppliers = [...allSuppliers].sort((a, b) => b.totalAmount - a.totalAmount);
+    return sortedSuppliers.slice(0, limit);
+  }
+
+  async getSuppliersByPaymentTerms() {
+    const allSuppliers = await this.findAll();
+    
+    return allSuppliers.reduce((groups, supplier) => {
+      const terms = supplier.paymentTerms || 30;
+      if (!groups[terms]) {
+        groups[terms] = [];
+      }
+      groups[terms].push(supplier);
+      return groups;
+    }, {} as Record<number, any[]>);
+  }
+}
