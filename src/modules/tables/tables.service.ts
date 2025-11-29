@@ -5,9 +5,12 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TablesService {
-  private readonly tableName = 'grove_system_tables';
+  private readonly tableName: string;
 
-  constructor(private readonly dynamoDBService: DynamoDBService) {}
+  constructor(private readonly dynamoDBService: DynamoDBService) {
+    // Usamos el prefijo configurado (DYNAMODB_TABLES_PREFIX) en lugar de un nombre fijo
+    this.tableName = this.dynamoDBService.getTableName('tables');
+  }
 
   async findAll() {
     const result = await this.dynamoDBService.scan(this.tableName);
