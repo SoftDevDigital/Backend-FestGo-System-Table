@@ -7,10 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class InventoryService {
   private readonly logger = new Logger(InventoryService.name);
-  private readonly tableName = 'grove_system_inventory';
-  private readonly stockMovementsTableName = 'grove_system_stock_movements';
+  private readonly tableName: string;
+  private readonly stockMovementsTableName: string;
 
-  constructor(private readonly dynamoDBService: DynamoDBService) {}
+  constructor(private readonly dynamoDBService: DynamoDBService) {
+    this.tableName = this.dynamoDBService.getTableName('inventory_items');
+    this.stockMovementsTableName = this.dynamoDBService.getTableName('stock_movements');
+  }
 
   async findAll(lowStockOnly = false) {
     const result = await this.dynamoDBService.scan(this.tableName);

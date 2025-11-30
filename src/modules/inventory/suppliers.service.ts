@@ -7,9 +7,11 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class SuppliersService {
   private readonly logger = new Logger(SuppliersService.name);
-  private readonly tableName = 'grove_system_suppliers';
+  private readonly tableName: string;
 
-  constructor(private readonly dynamoDBService: DynamoDBService) {}
+  constructor(private readonly dynamoDBService: DynamoDBService) {
+    this.tableName = this.dynamoDBService.getTableName('suppliers');
+  }
 
   async findAll() {
     const result = await this.dynamoDBService.scan(this.tableName);
@@ -30,9 +32,21 @@ export class SuppliersService {
   }
 
   async create(createSupplierDto: CreateSupplierDto) {
+    // Asegurar que el objeto address se serialice correctamente
+    const supplierData = {
+      ...createSupplierDto,
+      address: createSupplierDto.address ? {
+        street: createSupplierDto.address.street,
+        city: createSupplierDto.address.city,
+        state: createSupplierDto.address.state,
+        zipCode: createSupplierDto.address.zipCode,
+        country: createSupplierDto.address.country,
+      } : undefined,
+    };
+
     const newSupplier = {
       id: uuidv4(),
-      ...createSupplierDto,
+      ...supplierData,
       isActive: true,
       totalOrders: 0,
       totalAmount: 0,

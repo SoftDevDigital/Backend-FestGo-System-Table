@@ -4,9 +4,11 @@ import { DynamoDBService } from '../../database/dynamodb.service';
 @Injectable()
 export class StockMovementsService {
   private readonly logger = new Logger(StockMovementsService.name);
-  private readonly tableName = 'grove_system_stock_movements';
+  private readonly tableName: string;
 
-  constructor(private readonly dynamoDBService: DynamoDBService) {}
+  constructor(private readonly dynamoDBService: DynamoDBService) {
+    this.tableName = this.dynamoDBService.getTableName('stock_movements');
+  }
 
   async findAll() {
     const result = await this.dynamoDBService.scan(this.tableName);

@@ -7,7 +7,13 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly dynamoService: DynamoDBService) {}
+  private readonly customersTableName: string;
+  private readonly reservationsTableName: string;
+
+  constructor(private readonly dynamoService: DynamoDBService) {
+    this.customersTableName = this.dynamoService.getTableName('customers');
+    this.reservationsTableName = this.dynamoService.getTableName('reservations');
+  }
 
   async createCustomer(createCustomerDto: CreateCustomerDto): Promise<Customer> {
     const customerId = uuidv4();
@@ -41,35 +47,45 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', customer);
+    await this.dynamoService.put(this.customersTableName, customer);
     
     return customer;
   }
 
   async findAllCustomers(page: number = 1, limit: number = 20): Promise<PaginatedResponse<Customer>> {
-    const result = await this.dynamoService.scan('customers', undefined, undefined, undefined, limit);
-    
-    return new PaginatedResponse(
-      result.items as Customer[],
-      page,
-      limit,
-      result.count || 0
-    );
+    try {
+      const result = await this.dynamoService.scan(this.customersTableName, undefined, undefined, undefined, limit);
+      
+      const normalizedCustomers = this.normalizeCustomers(result.items as any[] || []);
+      
+      return new PaginatedResponse(
+        normalizedCustomers,
+        page,
+        limit,
+        result.count || 0
+      );
+    } catch (error) {
+      // Si hay error de serialización, retornar lista vacía
+      if (error.message?.includes('STRING_VALUE cannot be converted to Integer')) {
+        return new PaginatedResponse([], page, limit, 0);
+      }
+      throw error;
+    }
   }
 
   async findCustomerById(customerId: string): Promise<Customer> {
-    const customer = await this.dynamoService.get('customers', { customerId });
+    const customer = await this.dynamoService.get(this.customersTableName, { customerId });
     
     if (!customer) {
       throw new NotFoundException(`Cliente con ID ${customerId} no encontrado`);
     }
     
-    return customer as Customer;
+    return this.normalizeCustomer(customer);
   }
 
   async findCustomerByPhone(phone: string): Promise<Customer> {
     const result = await this.dynamoService.scan(
-      'customers',
+      this.customersTableName,
       'phone = :phone',
       undefined,
       { ':phone': phone },
@@ -80,20 +96,28 @@ export class CustomersService {
       throw new NotFoundException(`Cliente con teléfono ${phone} no encontrado`);
     }
     
-    return result.items[0] as Customer;
+    return this.normalizeCustomer(result.items[0]);
   }
 
   async searchCustomers(query: string): Promise<Customer[]> {
-    const result = await this.dynamoService.scan('customers');
-    
-    const searchTerms = query.toLowerCase();
-    const filteredCustomers = (result.items as Customer[]).filter(customer =>
-      customer.firstName.toLowerCase().includes(searchTerms) ||
-      customer.lastName.toLowerCase().includes(searchTerms) ||
-      (customer.email?.toLowerCase().includes(searchTerms))
-    );
+    try {
+      const result = await this.dynamoService.scan(this.customersTableName);
+      
+      const searchTerms = query.toLowerCase();
+      const filteredCustomers = this.normalizeCustomers(result.items as any[] || []).filter(customer =>
+        customer.firstName.toLowerCase().includes(searchTerms) ||
+        customer.lastName.toLowerCase().includes(searchTerms) ||
+        (customer.email?.toLowerCase().includes(searchTerms))
+      );
 
-    return filteredCustomers;
+      return filteredCustomers;
+    } catch (error) {
+      // Si hay error de serialización, retornar lista vacía
+      if (error.message?.includes('STRING_VALUE cannot be converted to Integer')) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async updateCustomer(customerId: string, updateCustomerDto: UpdateCustomerDto): Promise<Customer> {
@@ -107,19 +131,19 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', updatedCustomer);
+    await this.dynamoService.put(this.customersTableName, updatedCustomer);
     
     return updatedCustomer;
   }
 
   async deleteCustomer(customerId: string): Promise<void> {
     await this.findCustomerById(customerId);
-    await this.dynamoService.delete('customers', { customerId });
+    await this.dynamoService.delete(this.customersTableName, { customerId });
   }
 
   async getCustomerReservationHistory(customerId: string): Promise<any[]> {
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       'customerId = :customerId',
       undefined,
       { ':customerId': customerId }
@@ -129,22 +153,38 @@ export class CustomersService {
   }
 
   async getTopCustomers(limit: number = 10): Promise<Customer[]> {
-    const result = await this.dynamoService.scan('customers');
-    const customers = result.items as Customer[];
-    
-    return customers
-      .filter(customer => customer.totalVisits > 0)
-      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
-      .slice(0, limit);
+    try {
+      const result = await this.dynamoService.scan(this.customersTableName);
+      const customers = this.normalizeCustomers(result.items as any[] || []);
+      
+      return customers
+        .filter(customer => customer.totalVisits > 0)
+        .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+        .slice(0, limit);
+    } catch (error) {
+      // Si hay error de serialización, retornar lista vacía
+      if (error.message?.includes('STRING_VALUE cannot be converted to Integer')) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async getVipCustomers(): Promise<Customer[]> {
-    const result = await this.dynamoService.scan('customers');
-    const customers = result.items as Customer[];
-    
-    return customers.filter(customer => 
-      (customer.totalVisits || 0) >= 10 || (customer.totalSpent || 0) >= 1000
-    );
+    try {
+      const result = await this.dynamoService.scan(this.customersTableName);
+      const customers = this.normalizeCustomers(result.items as any[] || []);
+      
+      return customers.filter(customer => 
+        (customer.totalVisits || 0) >= 10 || (customer.totalSpent || 0) >= 1000
+      );
+    } catch (error) {
+      // Si hay error de serialización, retornar lista vacía
+      if (error.message?.includes('STRING_VALUE cannot be converted to Integer')) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async promoteToVip(customerId: string): Promise<Customer> {
@@ -156,8 +196,8 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', updatedCustomer);
-    return updatedCustomer;
+    await this.dynamoService.put(this.customersTableName, updatedCustomer);
+    return this.normalizeCustomer(updatedCustomer);
   }
 
   async removeVipStatus(customerId: string): Promise<Customer> {
@@ -169,8 +209,8 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', updatedCustomer);
-    return updatedCustomer;
+    await this.dynamoService.put(this.customersTableName, updatedCustomer);
+    return this.normalizeCustomer(updatedCustomer);
   }
 
   async addCustomerNote(customerId: string, note: string): Promise<Customer> {
@@ -184,8 +224,8 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', updatedCustomer);
-    return updatedCustomer;
+    await this.dynamoService.put(this.customersTableName, updatedCustomer);
+    return this.normalizeCustomer(updatedCustomer);
   }
 
   async updateCommunicationPreferences(customerId: string, preferences: any): Promise<Customer> {
@@ -200,7 +240,41 @@ export class CustomersService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('customers', updatedCustomer);
-    return updatedCustomer;
+    await this.dynamoService.put(this.customersTableName, updatedCustomer);
+    return this.normalizeCustomer(updatedCustomer);
+  }
+
+  /**
+   * Normaliza un customer individual, convirtiendo campos numéricos de string a number
+   */
+  private normalizeCustomer(customer: any): Customer {
+    if (!customer) return customer;
+    
+    // Convertir campos numéricos de forma segura
+    const normalizeNumber = (value: any, defaultValue: number = 0): number => {
+      if (value === null || value === undefined) return defaultValue;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? defaultValue : parsed;
+      }
+      return defaultValue;
+    };
+    
+    return {
+      ...customer,
+      totalVisits: normalizeNumber(customer.totalVisits, 0),
+      totalSpent: normalizeNumber(customer.totalSpent, 0),
+      averageSpent: normalizeNumber(customer.averageSpent, 0),
+      vipStatus: customer.vipStatus === true || customer.vipStatus === 'true',
+    };
+  }
+
+  /**
+   * Normaliza un array de customers
+   */
+  private normalizeCustomers(customers: any[]): Customer[] {
+    if (!customers || !Array.isArray(customers)) return [];
+    return customers.map(customer => this.normalizeCustomer(customer));
   }
 }

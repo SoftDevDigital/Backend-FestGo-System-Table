@@ -6,12 +6,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class WaitlistService {
-  constructor(private readonly dynamoService: DynamoDBService) {}
+  private readonly waitlistTableName: string;
+
+  constructor(private readonly dynamoService: DynamoDBService) {
+    this.waitlistTableName = this.dynamoService.getTableName('waitlist');
+  }
 
   async addToWaitlist(createWaitlistDto: CreateWaitlistEntryDto): Promise<WaitlistEntry> {
     // Verificar si ya existe una entrada para este cliente en esta fecha
     const existingEntries = await this.dynamoService.scan(
-      'waitlist',
+      this.waitlistTableName,
       'customerId = :customerId AND requestedDate = :date',
       undefined,
       {
@@ -47,14 +51,14 @@ export class WaitlistService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('waitlist', waitlistEntry);
+    await this.dynamoService.put(this.waitlistTableName, waitlistEntry);
     
     return waitlistEntry;
   }
 
   async getWaitlistForDate(date: string): Promise<WaitlistEntry[]> {
     const result = await this.dynamoService.scan(
-      'waitlist',
+      this.waitlistTableName,
       'requestedDate = :date AND #status = :status',
       { '#status': 'status' },
       {
@@ -132,7 +136,7 @@ export class WaitlistService {
     const cutoffDate = yesterday.toISOString().split('T')[0];
 
     const expiredEntries = await this.dynamoService.scan(
-      'waitlist',
+      this.waitlistTableName,
       'requestedDate < :cutoffDate AND #status = :status',
       { '#status': 'status' },
       {
@@ -168,7 +172,7 @@ export class WaitlistService {
     }
 
     const allEntries = await this.dynamoService.scan(
-      'waitlist',
+      this.waitlistTableName,
       query,
       expressionAttributeNames,
       expressionAttributeValues
@@ -188,7 +192,7 @@ export class WaitlistService {
   }
 
   private async findWaitlistEntryById(waitlistId: string): Promise<WaitlistEntry> {
-    const entry = await this.dynamoService.get('waitlist', { waitlistId });
+    const entry = await this.dynamoService.get(this.waitlistTableName, { waitlistId });
     
     if (!entry) {
       throw new NotFoundException(`Entrada de lista de espera ${waitlistId} no encontrada`);
@@ -199,7 +203,7 @@ export class WaitlistService {
 
   private async getNextPosition(date: string): Promise<number> {
     const result = await this.dynamoService.scan(
-      'waitlist',
+      this.waitlistTableName,
       'requestedDate = :date AND #status = :status',
       { '#status': 'status' },
       {

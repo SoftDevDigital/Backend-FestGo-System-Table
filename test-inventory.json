@@ -1,0 +1,9 @@
+{
+  "itemName": "Tomate",
+  "currentStock": 50,
+  "minimumStock": 20,
+  "maximumStock": 100,
+  "unit": "kg",
+  "costPerUnit": 2.5
+}
+

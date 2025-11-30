@@ -19,6 +19,12 @@ export default registerAs('database', () => {
         movements: `${tablesPrefix}movements`,
         categories: `${tablesPrefix}categories`,
         settings: `${tablesPrefix}settings`,
+        inventory_items: `${tablesPrefix}inventory_items`,
+        stock_movements: `${tablesPrefix}stock_movements`,
+        suppliers: `${tablesPrefix}suppliers`,
+        reservations: `${tablesPrefix}reservations`,
+        customers: `${tablesPrefix}customers`,
+        waitlist: `${tablesPrefix}waitlist`,
       },
     },
   };

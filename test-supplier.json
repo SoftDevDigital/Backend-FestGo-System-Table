@@ -1,0 +1,14 @@
+{
+  "name": "Proveedor ABC",
+  "contactName": "Carlos López",
+  "email": "carlos@proveedorabc.com",
+  "phone": "+34912345678",
+  "address": {
+    "street": "Calle Principal 123",
+    "city": "Madrid",
+    "state": "Madrid",
+    "zipCode": "28001",
+    "country": "España"
+  }
+}
+

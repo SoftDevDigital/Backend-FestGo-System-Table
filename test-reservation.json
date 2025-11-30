@@ -1,0 +1,13 @@
+{
+  "customerDetails": {
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "email": "juan.perez@example.com",
+    "phone": "+34612345678"
+  },
+  "partySize": 4,
+  "reservationDate": "2025-12-15",
+  "reservationTime": "20:00",
+  "duration": 120,
+  "specialRequests": ["Mesa cerca de la ventana"]
+}

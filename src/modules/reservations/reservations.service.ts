@@ -14,7 +14,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReservationsService {
-  constructor(private readonly dynamoService: DynamoDBService) {}
+  private readonly reservationsTableName: string;
+  private readonly customersTableName: string;
+  private readonly tablesTableName: string;
+
+  constructor(private readonly dynamoService: DynamoDBService) {
+    this.reservationsTableName = this.dynamoService.getTableName('reservations');
+    this.customersTableName = this.dynamoService.getTableName('customers');
+    this.tablesTableName = this.dynamoService.getTableName('tables');
+  }
 
   async createReservation(createReservationDto: CreateReservationDto): Promise<Reservation> {
     const reservationId = uuidv4();
@@ -32,11 +40,19 @@ export class ReservationsService {
       throw new BadRequestException('No hay disponibilidad para la fecha y hora solicitadas');
     }
 
+    // Asegurar que customerDetails se serialice correctamente
+    const customerDetails = createReservationDto.customerDetails ? {
+      firstName: createReservationDto.customerDetails.firstName,
+      lastName: createReservationDto.customerDetails.lastName,
+      email: createReservationDto.customerDetails.email,
+      phone: createReservationDto.customerDetails.phone,
+    } : undefined;
+
     const reservation: Reservation = {
       reservationId,
       confirmationCode,
       customerId: createReservationDto.customerId,
-      customerDetails: createReservationDto.customerDetails,
+      customerDetails: customerDetails,
       partySize: createReservationDto.partySize,
       preferredSeatingArea: createReservationDto.preferredSeatingArea,
       reservationDate: createReservationDto.reservationDate,
@@ -59,7 +75,7 @@ export class ReservationsService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put('reservations', reservation);
+    await this.dynamoService.put(this.reservationsTableName, reservation);
     
     // TODO: Send confirmation notification
     await this.scheduleConfirmationNotification(reservation);
@@ -89,7 +105,7 @@ export class ReservationsService {
     }
 
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       filterExpression || undefined,
       Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
       Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
@@ -105,7 +121,7 @@ export class ReservationsService {
   }
 
   async findReservationById(reservationId: string): Promise<Reservation> {
-    const reservation = await this.dynamoService.get('reservations', { reservationId });
+    const reservation = await this.dynamoService.get(this.reservationsTableName, { reservationId });
     
     if (!reservation) {
       throw new NotFoundException(`Reserva con ID ${reservationId} no encontrada`);
@@ -116,7 +132,7 @@ export class ReservationsService {
 
   async findReservationByConfirmationCode(confirmationCode: string): Promise<Reservation> {
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       'confirmationCode = :code',
       undefined,
       { ':code': confirmationCode },
@@ -260,7 +276,7 @@ export class ReservationsService {
 
   async checkAvailability(query: AvailabilityQueryDto, excludeReservationId?: string): Promise<boolean> {
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       'reservationDate = :date AND #status IN (:confirmed, :seated)',
       { '#status': 'status' },
       { 
@@ -299,7 +315,7 @@ export class ReservationsService {
 
   private async getAvailableTables(date: string): Promise<any[]> {
     const result = await this.dynamoService.scan(
-      'tables',
+      this.tablesTableName,
       '#status = :status',
       { '#status': 'status' },
       { ':status': 'available' }
@@ -312,7 +328,7 @@ export class ReservationsService {
     const today = new Date().toISOString().split('T')[0];
     
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       'reservationDate = :today',
       undefined,
       { ':today': today }
@@ -328,7 +344,7 @@ export class ReservationsService {
     const futureDate = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
     
     const result = await this.dynamoService.scan(
-      'reservations',
+      this.reservationsTableName,
       'reservationDate BETWEEN :start AND :end',
       undefined,
       {
@@ -375,7 +391,7 @@ export class ReservationsService {
 
   private async findCustomerByPhone(phone: string): Promise<any> {
     const result = await this.dynamoService.scan(
-      'customers',
+      this.customersTableName,
       'phone = :phone',
       undefined,
       { ':phone': phone },
@@ -416,7 +432,7 @@ export class ReservationsService {
   }
 
   private async updateCustomerStatistics(customerId: string, spend: number): Promise<void> {
-    const customer = await this.dynamoService.get('customers', { customerId });
+    const customer = await this.dynamoService.get(this.customersTableName, { customerId });
     if (customer) {
       const updatedCustomer = {
         ...customer,
@@ -426,7 +442,7 @@ export class ReservationsService {
         updatedAt: new Date().toISOString()
       };
       
-      await this.dynamoService.put('customers', updatedCustomer);
+      await this.dynamoService.put(this.customersTableName, updatedCustomer);
     }
   }
 }
