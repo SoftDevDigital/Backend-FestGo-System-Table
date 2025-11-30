@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode, Htt
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto, UpdateSupplierDto } from './dto/inventory.dto';
+import { AdminOnly } from '../../common/decorators/admin-only.decorator';
+import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
 @ApiTags('suppliers')
 @Controller('suppliers')
@@ -9,6 +11,7 @@ export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 
   @Get()
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener todos los proveedores' })
   @ApiQuery({ name: 'active', required: false, description: 'Filtrar solo proveedores activos' })
   @ApiResponse({ status: 200, description: 'Lista de proveedores' })
@@ -20,6 +23,7 @@ export class SuppliersController {
   }
 
   @Get('top-by-volume')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener top proveedores por volumen' })
   @ApiQuery({ name: 'limit', required: false, description: 'Número de proveedores a retornar' })
   @ApiResponse({ status: 200, description: 'Top proveedores por volumen' })
@@ -29,6 +33,7 @@ export class SuppliersController {
   }
 
   @Get('by-payment-terms')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Agrupar proveedores por términos de pago' })
   @ApiResponse({ status: 200, description: 'Proveedores agrupados por términos de pago' })
   async getSuppliersByPaymentTerms() {
@@ -36,6 +41,7 @@ export class SuppliersController {
   }
 
   @Get(':id')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener proveedor por ID' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 200, description: 'Proveedor encontrado' })
@@ -45,6 +51,7 @@ export class SuppliersController {
   }
 
   @Post()
+  @AdminOnly()
   @ApiOperation({ summary: 'Crear nuevo proveedor' })
   @ApiResponse({ status: 201, description: 'Proveedor creado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
@@ -53,6 +60,7 @@ export class SuppliersController {
   }
 
   @Patch(':id')
+  @AdminOnly()
   @ApiOperation({ summary: 'Actualizar proveedor' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 200, description: 'Proveedor actualizado exitosamente' })
@@ -62,6 +70,7 @@ export class SuppliersController {
   }
 
   @Post(':id/update-order-stats')
+  @AdminOnly()
   @ApiOperation({ summary: 'Actualizar estadísticas de órdenes del proveedor' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 200, description: 'Estadísticas actualizadas' })
@@ -73,6 +82,7 @@ export class SuppliersController {
   }
 
   @Delete(':id')
+  @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar proveedor' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })

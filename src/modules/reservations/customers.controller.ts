@@ -16,6 +16,9 @@ import { CreateCustomerDto, UpdateCustomerDto } from './dto/reservation.dto';
 import { Customer } from '../../common/entities/reservation.entity';
 import { PaginatedResponse } from '../../common/dto/pagination.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
+import { AdminOnly } from '../../common/decorators/admin-only.decorator';
+import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('customers')
 @Controller('customers')
@@ -24,7 +27,7 @@ export class CustomersController {
 
   // POST /customers - Crear cliente
   @Post()
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @ApiOperation({ 
     summary: '👥 Crear nuevo cliente',
     description: 'Registra un nuevo cliente con validación de duplicados'
@@ -38,7 +41,7 @@ export class CustomersController {
 
   // GET /customers - Listar o buscar
   @Get()
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '📋 Listar o buscar clientes',
     description: `Endpoint unificado:
@@ -91,7 +94,7 @@ export class CustomersController {
 
   // GET /customers/:id - Obtener por ID
   @Get(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🔍 Obtener cliente por ID',
     description: 'Obtiene perfil completo del cliente'
@@ -105,7 +108,7 @@ export class CustomersController {
 
   // GET /customers/:id/reservations - Historial de reservas
   @Get(':id/reservations')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '📅 Historial de reservas del cliente',
     description: 'Obtiene todas las reservas pasadas y futuras del cliente'
@@ -133,7 +136,7 @@ export class CustomersController {
 
   // PATCH /customers/:id - Actualizar
   @Patch(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '✏️ Actualizar cliente',
     description: 'Actualiza información del cliente'
@@ -150,7 +153,7 @@ export class CustomersController {
 
   // PATCH /customers/:id/manage - Gestionar estado VIP y notas
   @Patch(':id/manage')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOnly()
   @ApiOperation({ 
     summary: '⭐ Gestionar cliente',
     description: `Gestión de cliente usando query parameter 'action':
@@ -194,7 +197,7 @@ export class CustomersController {
 
   // DELETE /customers/:id - Eliminar
   @Delete(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOnly()
   @ApiOperation({ 
     summary: '🗑️ Eliminar cliente',
     description: 'Elimina permanentemente un cliente (usar con precaución)'

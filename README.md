@@ -19,6 +19,7 @@ Un sistema completo de gestión para restaurantes que utiliza AWS, NestJS, Terra
 - **Base de datos**: AWS DynamoDB
 - **Almacenamiento**: AWS S3
 - **Autenticación**: JWT con Passport
+- **Autorización**: Guards basados en roles (admin, employee, customer)
 
 ### AWS Services
 - **API Gateway**: Endpoint management
@@ -102,17 +103,19 @@ npm run format
 - **🆕 API simplificada con query parameters (42% menos endpoints)**
 - **🆕 Documentación completa del sistema (SYSTEM_FLOW_GUIDE.md)**
 - **🆕 Guía de configuración AWS (AWS_CREDENTIALS_SETUP.md)**
+- **🆕 Sistema de autenticación y autorización completo**
+  - Guards JWT globales
+  - Autorización por roles (admin, employee, customer)
+  - Decoradores simplificados (@Public, @AdminOnly, @AdminOrEmployee)
+- **🆕 Integración real con AWS DynamoDB y S3**
 - Infraestructura Terraform para AWS
 - Compilación exitosa
 - Servidor de desarrollo ejecutándose
 
 🚧 **Pendiente:**
 - Implementación completa de la lógica de negocio
-- Integración real con AWS DynamoDB y S3
-- Sistema de autenticación JWT completo
 - Lógica de impresión térmica
 - Tests unitarios y de integración
-- Configuración real de AWS credentials
 
 ## 🔧 Scripts Disponibles
 
@@ -149,6 +152,35 @@ Hemos simplificado la API de **33 a 19 endpoints** (reducción del 42%) usando q
 ```
 
 📖 **Documentación completa:** Ver [API_ROUTES_MIGRATION.md](./docs/API_ROUTES_MIGRATION.md)
+
+## 📚 Documentación
+
+### Para Desarrolladores Frontend ⭐
+- **[Autenticación y Autorización](./docs/AUTHENTICATION_AND_AUTHORIZATION.md)** - Guía completa de autenticación JWT, roles y permisos
+- **[Tabla de Endpoints y Permisos](./docs/ENDPOINTS_PERMISSIONS_TABLE.md)** - Referencia rápida de todos los endpoints y sus restricciones
+
+### Para Desarrolladores Backend
+- [API Documentation](./docs/API.md) - Documentación completa de endpoints
+- [System Flow Guide](./docs/SYSTEM_FLOW_GUIDE.md) - Guía de flujos del sistema
+- [API Routes Migration](./docs/API_ROUTES_MIGRATION.md) - Migración de rutas simplificadas
+- [AWS Credentials Setup](./docs/AWS_CREDENTIALS_SETUP.md) - Configuración de AWS
+
+## 🔐 Autenticación y Autorización
+
+El sistema utiliza **JWT (JSON Web Tokens)** para autenticación y **guards basados en roles** para autorización.
+
+### Roles Disponibles:
+- **ADMIN** (`admin`): Acceso completo al sistema
+- **EMPLOYEE** (`employee`): Acceso operativo (gestión de reservas, clientes, inventario lectura)
+- **CUSTOMER** (`customer`): Acceso limitado (crear reservas, ver menú)
+
+### Características:
+- ✅ Protección global de endpoints (excepto los marcados como `@Public()`)
+- ✅ Decoradores simplificados: `@Public()`, `@AdminOnly()`, `@AdminOrEmployee()`
+- ✅ Manejo automático de errores 401 (no autenticado) y 403 (sin permisos)
+- ✅ Token JWT en header: `Authorization: Bearer <token>`
+
+📖 **Ver documentación completa**: [Autenticación y Autorización](./docs/AUTHENTICATION_AND_AUTHORIZATION.md)
 
 ## 🔐 Variables de Entorno
 

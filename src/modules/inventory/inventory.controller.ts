@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode, Htt
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory.dto';
+import { AdminOnly } from '../../common/decorators/admin-only.decorator';
+import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -9,6 +11,7 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Get()
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener todos los artículos de inventario' })
   @ApiQuery({ name: 'lowStock', required: false, description: 'Filtrar solo artículos con stock bajo' })
   @ApiResponse({ status: 200, description: 'Lista de artículos de inventario' })
@@ -18,6 +21,7 @@ export class InventoryController {
   }
 
   @Get('low-stock')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener artículos con stock bajo' })
   @ApiResponse({ status: 200, description: 'Lista de artículos con stock bajo' })
   async getLowStockItems() {
@@ -25,6 +29,7 @@ export class InventoryController {
   }
 
   @Get('value')
+  @AdminOnly()
   @ApiOperation({ summary: 'Obtener valor total del inventario' })
   @ApiResponse({ status: 200, description: 'Valor total del inventario' })
   async getInventoryValue() {
@@ -33,6 +38,7 @@ export class InventoryController {
   }
 
   @Get('movements')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener movimientos de stock' })
   @ApiQuery({ name: 'itemId', required: false, description: 'ID del artículo específico' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
@@ -41,6 +47,7 @@ export class InventoryController {
   }
 
   @Get(':id')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Obtener artículo de inventario por ID' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Artículo de inventario encontrado' })
@@ -50,6 +57,7 @@ export class InventoryController {
   }
 
   @Post()
+  @AdminOnly()
   @ApiOperation({ summary: 'Crear nuevo artículo de inventario' })
   @ApiResponse({ status: 201, description: 'Artículo creado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
@@ -58,6 +66,7 @@ export class InventoryController {
   }
 
   @Patch(':id')
+  @AdminOnly()
   @ApiOperation({ summary: 'Actualizar artículo de inventario' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Artículo actualizado exitosamente' })
@@ -67,6 +76,7 @@ export class InventoryController {
   }
 
   @Post(':id/adjust-stock')
+  @AdminOnly()
   @ApiOperation({ summary: 'Ajustar stock de un artículo' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Stock ajustado exitosamente' })
@@ -84,6 +94,7 @@ export class InventoryController {
   }
 
   @Post(':id/consume')
+  @AdminOrEmployee()
   @ApiOperation({ summary: 'Consumir stock de un artículo' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Stock consumido exitosamente' })
@@ -101,6 +112,7 @@ export class InventoryController {
   }
 
   @Delete(':id')
+  @AdminOnly()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar artículo de inventario' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })

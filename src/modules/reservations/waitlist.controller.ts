@@ -15,6 +15,8 @@ import { WaitlistService } from './waitlist.service';
 import { CreateWaitlistEntryDto } from './dto/reservation.dto';
 import { WaitlistEntry } from '../../common/entities/reservation.entity';
 import { SuccessResponse } from '../../common/dto/response.dto';
+import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('waitlist')
 @Controller('waitlist')
@@ -23,7 +25,7 @@ export class WaitlistController {
 
   // POST /waitlist - Agregar a lista de espera
   @Post()
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @ApiOperation({ 
     summary: '⏳ Agregar a lista de espera',
     description: 'Agrega un cliente a la lista de espera con cálculo automático de tiempo estimado'
@@ -37,7 +39,7 @@ export class WaitlistController {
 
   // GET /waitlist - Obtener lista de espera
   @Get()
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '📋 Obtener lista de espera',
     description: `Obtiene lista de espera con filtros opcionales:
@@ -70,7 +72,7 @@ export class WaitlistController {
 
   // PATCH /waitlist/:id - Actualizar estado
   @Patch(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🔄 Actualizar entrada de lista de espera',
     description: `Actualiza usando query parameter 'action':
@@ -109,7 +111,7 @@ export class WaitlistController {
 
   // DELETE /waitlist/:id - Eliminar entrada
   @Delete(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🗑️ Eliminar entrada',
     description: 'Elimina una entrada de la lista de espera'
@@ -123,7 +125,7 @@ export class WaitlistController {
 
   // POST /waitlist/maintenance - Mantenimiento
   @Post('maintenance')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🔧 Mantenimiento de lista de espera',
     description: 'Expira entradas antiguas automáticamente'

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -19,6 +19,9 @@ import { CreateReservationDto, UpdateReservationDto, AvailabilityQueryDto, Reser
 import { Reservation } from '../../common/entities/reservation.entity';
 import { PaginatedResponse } from '../../common/dto/pagination.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
+import { AdminOnly } from '../../common/decorators/admin-only.decorator';
+import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('reservations')
 @Controller('reservations')
@@ -27,7 +30,7 @@ export class ReservationsController {
 
   // POST /reservations - Crear reserva
   @Post()
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @ApiOperation({ 
     summary: '📅 Crear nueva reserva',
     description: 'Crea una nueva reserva verificando disponibilidad automáticamente'
@@ -46,7 +49,7 @@ export class ReservationsController {
 
   // GET /reservations - Listar con filtros
   @Get()
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '📋 Obtener reservas',
     description: `Obtiene reservas con filtros opcionales:
@@ -97,7 +100,7 @@ export class ReservationsController {
 
   // GET /reservations/check - Verificar disponibilidad o slots
   @Get('check')
-  @ApiBearerAuth('JWT-auth')
+  @Public()
   @ApiOperation({ 
     summary: '🔍 Verificar disponibilidad o slots',
     description: `Endpoint unificado:
@@ -136,7 +139,7 @@ export class ReservationsController {
 
   // GET /reservations/:id - Obtener por ID
   @Get(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🔍 Obtener reserva por ID',
     description: 'Obtiene detalles completos de una reserva específica'
@@ -151,6 +154,7 @@ export class ReservationsController {
 
   // GET /reservations/code/:code - Buscar por código de confirmación
   @Get('code/:code')
+  @Public()
   @ApiOperation({ 
     summary: '🎫 Buscar por código de confirmación',
     description: 'Busca reserva usando el código de confirmación (ej: GRV2K4)'
@@ -164,7 +168,7 @@ export class ReservationsController {
 
   // PATCH /reservations/:id - Actualizar
   @Patch(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '✏️ Actualizar reserva',
     description: 'Actualiza datos de una reserva existente'
@@ -181,7 +185,7 @@ export class ReservationsController {
 
   // PATCH /reservations/:id/status - Cambiar estado
   @Patch(':id/status')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOrEmployee()
   @ApiOperation({ 
     summary: '🔄 Cambiar estado de reserva',
     description: `Cambia el estado usando query parameter 'action':
@@ -232,7 +236,7 @@ export class ReservationsController {
 
   // DELETE /reservations/:id - Eliminar
   @Delete(':id')
-  @ApiBearerAuth('JWT-auth')
+  @AdminOnly()
   @ApiOperation({ 
     summary: '🗑️ Eliminar reserva',
     description: 'Elimina permanentemente una reserva (usar con precaución)'
