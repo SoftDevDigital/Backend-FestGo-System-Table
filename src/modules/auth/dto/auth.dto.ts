@@ -48,16 +48,6 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty({ message: 'El nombre es requerido' })
   name: string;
-
-  @ApiPropertyOptional({
-    description: 'Rol del usuario',
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
-    example: UserRole.CUSTOMER,
-  })
-  @IsOptional()
-  @IsEnum(UserRole, { message: 'Rol inválido' })
-  role?: UserRole;
 }
 
 export class AuthResponseDto {

@@ -77,7 +77,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
     summary: '📝 Registrar nuevo usuario', 
-    description: 'Crea una nueva cuenta de usuario. Por defecto se asigna el rol "customer" a menos que se especifique otro rol (requiere permisos de admin).' 
+    description: 'Crea una nueva cuenta de usuario. Todos los usuarios registrados tendrán el rol "customer" por defecto. Solo un administrador puede cambiar el rol después del registro.' 
   })
   @ApiBody({ type: RegisterDto })
   @ApiCreatedResponse({ 
