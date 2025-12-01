@@ -130,8 +130,8 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer('http://localhost:3004/api/v1', 'Servidor de Desarrollo')
-    .addServer('https://api.festgo-bar.com/api/v1', 'Servidor de Producción')
+    .addServer('http://localhost:3004', 'Servidor de Desarrollo')
+    .addServer('https://api.festgo-bar.com', 'Servidor de Producción')
     .addTag('auth', '🔐 Autenticación')
     .addTag('users', '👤 Usuarios')
     .addTag('tables', '🍽️ Mesas')
