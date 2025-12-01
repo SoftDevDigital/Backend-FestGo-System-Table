@@ -16,40 +16,44 @@ export class CustomersService {
   }
 
   async createCustomer(createCustomerDto: CreateCustomerDto): Promise<Customer> {
-    const customerId = uuidv4();
+    try {
+      const customerId = uuidv4();
 
-    const customer: Customer = {
-      customerId,
-      firstName: createCustomerDto.firstName,
-      lastName: createCustomerDto.lastName,
-      email: createCustomerDto.email,
-      phone: createCustomerDto.phone,
-      dateOfBirth: createCustomerDto.dateOfBirth,
-      allergies: createCustomerDto.allergies || [],
-      dietaryRestrictions: createCustomerDto.dietaryRestrictions || [],
-      preferences: createCustomerDto.preferences || [],
-      totalVisits: 0,
-      totalSpent: 0,
-      averageSpent: 0,
-      vipStatus: false,
-      notes: Array.isArray(createCustomerDto.notes) ? createCustomerDto.notes : [],
-      tags: [],
-      communicationPreferences: {
-        email: false,
-        sms: false,
-        whatsapp: false,
-        phone: false
-      },
-      address: undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: 'system',
-      updatedBy: 'system'
-    };
+      const customer: Customer = {
+        customerId,
+        firstName: createCustomerDto.firstName,
+        lastName: createCustomerDto.lastName,
+        email: createCustomerDto.email,
+        phone: createCustomerDto.phone,
+        dateOfBirth: createCustomerDto.dateOfBirth,
+        allergies: createCustomerDto.allergies || [],
+        dietaryRestrictions: createCustomerDto.dietaryRestrictions || [],
+        preferences: createCustomerDto.preferences || [],
+        totalVisits: 0,
+        totalSpent: 0,
+        averageSpent: 0,
+        vipStatus: false,
+        notes: Array.isArray(createCustomerDto.notes) ? createCustomerDto.notes : [],
+        tags: [],
+        communicationPreferences: {
+          email: false,
+          sms: false,
+          whatsapp: false,
+          phone: false
+        },
+        address: undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'system',
+        updatedBy: 'system'
+      };
 
-    await this.dynamoService.put(this.customersTableName, customer);
-    
-    return customer;
+      await this.dynamoService.put(this.customersTableName, customer);
+      
+      return customer;
+    } catch (error) {
+      throw new Error(`Error al crear el cliente: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async findAllCustomers(page: number = 1, limit: number = 20): Promise<PaginatedResponse<Customer>> {
@@ -74,13 +78,20 @@ export class CustomersService {
   }
 
   async findCustomerById(customerId: string): Promise<Customer> {
-    const customer = await this.dynamoService.get(this.customersTableName, { customerId });
-    
-    if (!customer) {
-      throw new NotFoundException(`Cliente con ID ${customerId} no encontrado`);
+    try {
+      const customer = await this.dynamoService.get(this.customersTableName, { customerId });
+      
+      if (!customer) {
+        throw new NotFoundException(`Cliente con ID ${customerId} no encontrado`);
+      }
+      
+      return this.normalizeCustomer(customer);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Error al obtener el cliente: ${error.message || 'Error desconocido'}`);
     }
-    
-    return this.normalizeCustomer(customer);
   }
 
   async findCustomerByPhone(phone: string): Promise<Customer> {
@@ -121,24 +132,38 @@ export class CustomersService {
   }
 
   async updateCustomer(customerId: string, updateCustomerDto: UpdateCustomerDto): Promise<Customer> {
-    const customer = await this.findCustomerById(customerId);
+    try {
+      const customer = await this.findCustomerById(customerId);
 
-    const updatedCustomer = {
-      ...customer,
-      ...updateCustomerDto,
-      notes: Array.isArray(updateCustomerDto.notes) ? updateCustomerDto.notes : customer.notes,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system'
-    };
+      const updatedCustomer = {
+        ...customer,
+        ...updateCustomerDto,
+        notes: Array.isArray(updateCustomerDto.notes) ? updateCustomerDto.notes : customer.notes,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system'
+      };
 
-    await this.dynamoService.put(this.customersTableName, updatedCustomer);
-    
-    return updatedCustomer;
+      await this.dynamoService.put(this.customersTableName, updatedCustomer);
+      
+      return updatedCustomer;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Error al actualizar el cliente: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async deleteCustomer(customerId: string): Promise<void> {
-    await this.findCustomerById(customerId);
-    await this.dynamoService.delete(this.customersTableName, { customerId });
+    try {
+      await this.findCustomerById(customerId);
+      await this.dynamoService.delete(this.customersTableName, { customerId });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error(`Error al eliminar el cliente: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async getCustomerReservationHistory(customerId: string): Promise<any[]> {

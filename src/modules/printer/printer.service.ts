@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class PrinterService {
+  private readonly logger = new Logger(PrinterService.name);
+
   async printTicket(data: any) {
+    try {
     // Armar objeto de ticket para impresión en frontend
     // data debe incluir: order, bill, mesa, cliente, método de pago, etc.
     const {
@@ -55,6 +58,10 @@ export class PrinterService {
       folio: bill?.billNumber || order?.orderNumber || null,
     };
 
-    return { success: true, ticket };
+      return { success: true, ticket };
+    } catch (error) {
+      this.logger.error(`Error generando ticket de impresión: ${error.message}`, error.stack);
+      throw new Error(`Error al generar ticket de impresión: ${error.message || 'Error desconocido'}`);
+    }
   }
 }

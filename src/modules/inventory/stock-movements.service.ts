@@ -11,59 +11,84 @@ export class StockMovementsService {
   }
 
   async findAll() {
-    const result = await this.dynamoDBService.scan(this.tableName);
-    return result.items;
+    try {
+      const result = await this.dynamoDBService.scan(this.tableName);
+      return result.items;
+    } catch (error) {
+      this.logger.error(`Error obteniendo movimientos de stock: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener movimientos de stock: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async findByInventoryItem(inventoryItemId: string) {
-    const result = await this.dynamoDBService.query(
-      this.tableName,
-      'inventoryItemId = :inventoryItemId',
-      { '#inventoryItemId': 'inventoryItemId' },
-      { ':inventoryItemId': inventoryItemId },
-    );
-    
-    return result.items;
+    try {
+      const result = await this.dynamoDBService.query(
+        this.tableName,
+        'inventoryItemId = :inventoryItemId',
+        { '#inventoryItemId': 'inventoryItemId' },
+        { ':inventoryItemId': inventoryItemId },
+      );
+      
+      return result.items;
+    } catch (error) {
+      this.logger.error(`Error obteniendo movimientos para artículo ${inventoryItemId}: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener movimientos del artículo: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async findByDateRange(startDate: string, endDate: string) {
-    const result = await this.dynamoDBService.scan(this.tableName);
-    
-    return result.items.filter(movement => {
-      const movementDate = movement.movementDate;
-      return movementDate >= startDate && movementDate <= endDate;
-    });
+    try {
+      const result = await this.dynamoDBService.scan(this.tableName);
+      
+      return result.items.filter(movement => {
+        const movementDate = movement.movementDate;
+        return movementDate >= startDate && movementDate <= endDate;
+      });
+    } catch (error) {
+      this.logger.error(`Error obteniendo movimientos por rango de fechas: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener movimientos por rango de fechas: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async findByType(type: string) {
-    const result = await this.dynamoDBService.scan(this.tableName);
-    return result.items.filter(movement => movement.type === type);
+    try {
+      const result = await this.dynamoDBService.scan(this.tableName);
+      return result.items.filter(movement => movement.type === type);
+    } catch (error) {
+      this.logger.error(`Error obteniendo movimientos por tipo ${type}: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener movimientos por tipo: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async getMovementsSummary(startDate: string, endDate: string) {
-    const movements = await this.findByDateRange(startDate, endDate);
-    
-    const summary = {
-      totalMovements: movements.length,
-      byType: {} as Record<string, number>,
-      totalQuantity: 0,
-      totalValue: 0,
-    };
+    try {
+      const movements = await this.findByDateRange(startDate, endDate);
+      
+      const summary = {
+        totalMovements: movements.length,
+        byType: {} as Record<string, number>,
+        totalQuantity: 0,
+        totalValue: 0,
+      };
 
-    for (const movement of movements) {
-      // Contar por tipo
-      summary.byType[movement.type] = (summary.byType[movement.type] || 0) + 1;
-      
-      // Sumar cantidades
-      summary.totalQuantity += movement.quantity;
-      
-      // Sumar valor si existe unitCost
-      if (movement.unitCost) {
-        summary.totalValue += movement.quantity * movement.unitCost;
+      for (const movement of movements) {
+        // Contar por tipo
+        summary.byType[movement.type] = (summary.byType[movement.type] || 0) + 1;
+        
+        // Sumar cantidades
+        summary.totalQuantity += movement.quantity;
+        
+        // Sumar valor si existe unitCost
+        if (movement.unitCost) {
+          summary.totalValue += movement.quantity * movement.unitCost;
+        }
       }
-    }
 
-    return summary;
+      return summary;
+    } catch (error) {
+      this.logger.error(`Error generando resumen de movimientos: ${error.message}`, error.stack);
+      throw new Error(`Error al generar resumen de movimientos: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async getInventoryItemHistory(inventoryItemId: string, limit = 50) {

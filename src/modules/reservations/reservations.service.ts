@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
 import { Reservation } from '../../common/entities/reservation.entity';
 import { 
@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ReservationsService {
+  private readonly logger = new Logger(ReservationsService.name);
   private readonly reservationsTableName: string;
   private readonly customersTableName: string;
   private readonly tablesTableName: string;
@@ -25,6 +26,7 @@ export class ReservationsService {
   }
 
   async createReservation(createReservationDto: CreateReservationDto): Promise<Reservation> {
+    try {
     const reservationId = uuidv4();
     const confirmationCode = this.generateConfirmationCode();
 
@@ -75,242 +77,323 @@ export class ReservationsService {
       updatedBy: 'system'
     };
 
-    await this.dynamoService.put(this.reservationsTableName, reservation);
-    
-    // TODO: Send confirmation notification
-    await this.scheduleConfirmationNotification(reservation);
-    
-    return reservation;
+      await this.dynamoService.put(this.reservationsTableName, reservation);
+      
+      // TODO: Send confirmation notification
+      await this.scheduleConfirmationNotification(reservation);
+      
+      return reservation;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error creando reserva: ${error.message}`, error.stack);
+      throw new Error(`Error al crear la reserva: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async findAllReservations(filters: ReservationFilterDto): Promise<PaginatedResponse<Reservation>> {
-    const page = filters.page || 1;
-    const limit = filters.limit || 20;
+    try {
+      const page = filters.page || 1;
+      const limit = filters.limit || 20;
 
-    // Construir parámetros de consulta
-    let filterExpression = '';
-    const expressionAttributeNames: Record<string, string> = {};
-    const expressionAttributeValues: Record<string, any> = {};
+      // Construir parámetros de consulta
+      let filterExpression = '';
+      const expressionAttributeNames: Record<string, string> = {};
+      const expressionAttributeValues: Record<string, any> = {};
 
-    if (filters.status) {
-      filterExpression += '#status = :status';
-      expressionAttributeNames['#status'] = 'status';
-      expressionAttributeValues[':status'] = filters.status;
+      if (filters.status) {
+        filterExpression += '#status = :status';
+        expressionAttributeNames['#status'] = 'status';
+        expressionAttributeValues[':status'] = filters.status;
+      }
+
+      if (filters.date) {
+        filterExpression += filterExpression ? ' AND ' : '';
+        filterExpression += 'reservationDate = :date';
+        expressionAttributeValues[':date'] = filters.date;
+      }
+
+      const result = await this.dynamoService.scan(
+        this.reservationsTableName,
+        filterExpression || undefined,
+        Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+        Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
+        limit
+      );
+      
+      return new PaginatedResponse(
+        result.items as Reservation[],
+        page,
+        limit,
+        result.count || 0
+      );
+    } catch (error) {
+      this.logger.error(`Error obteniendo reservas: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener la lista de reservas: ${error.message || 'Error desconocido'}`);
     }
-
-    if (filters.date) {
-      filterExpression += filterExpression ? ' AND ' : '';
-      filterExpression += 'reservationDate = :date';
-      expressionAttributeValues[':date'] = filters.date;
-    }
-
-    const result = await this.dynamoService.scan(
-      this.reservationsTableName,
-      filterExpression || undefined,
-      Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
-      Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
-      limit
-    );
-    
-    return new PaginatedResponse(
-      result.items as Reservation[],
-      page,
-      limit,
-      result.count || 0
-    );
   }
 
   async findReservationById(reservationId: string): Promise<Reservation> {
-    const reservation = await this.dynamoService.get(this.reservationsTableName, { reservationId });
-    
-    if (!reservation) {
-      throw new NotFoundException(`Reserva con ID ${reservationId} no encontrada`);
+    try {
+      const reservation = await this.dynamoService.get(this.reservationsTableName, { reservationId });
+      
+      if (!reservation) {
+        throw new NotFoundException(`Reserva con ID ${reservationId} no encontrada`);
+      }
+      
+      return reservation as Reservation;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error obteniendo reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener la reserva: ${error.message || 'Error desconocido'}`);
     }
-    
-    return reservation as Reservation;
   }
 
   async findReservationByConfirmationCode(confirmationCode: string): Promise<Reservation> {
-    const result = await this.dynamoService.scan(
-      this.reservationsTableName,
-      'confirmationCode = :code',
-      undefined,
-      { ':code': confirmationCode },
-      1
-    );
-    
-    if (!result.items || result.items.length === 0) {
-      throw new NotFoundException(`Reserva con código ${confirmationCode} no encontrada`);
+    try {
+      const result = await this.dynamoService.scan(
+        this.reservationsTableName,
+        'confirmationCode = :code',
+        undefined,
+        { ':code': confirmationCode },
+        1
+      );
+      
+      if (!result.items || result.items.length === 0) {
+        throw new NotFoundException(`Reserva con código ${confirmationCode} no encontrada`);
+      }
+      
+      return result.items[0] as Reservation;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error obteniendo reserva por código ${confirmationCode}: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener la reserva por código: ${error.message || 'Error desconocido'}`);
     }
-    
-    return result.items[0] as Reservation;
   }
 
   async updateReservation(reservationId: string, updateReservationDto: UpdateReservationDto): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    const updatedReservation = {
-      ...reservation,
-      ...updateReservationDto,
-      internalNotes: Array.isArray(updateReservationDto.internalNotes) 
-        ? updateReservationDto.internalNotes 
-        : reservation.internalNotes,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system'
-    };
+      const updatedReservation = {
+        ...reservation,
+        ...updateReservationDto,
+        internalNotes: Array.isArray(updateReservationDto.internalNotes) 
+          ? updateReservationDto.internalNotes 
+          : reservation.internalNotes,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system'
+      };
 
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    return updatedReservation;
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error actualizando reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al actualizar la reserva: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async cancelReservation(reservationId: string, cancellationReason?: string): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    if (reservation.status === ReservationStatus.CANCELLED) {
-      throw new BadRequestException('La reserva ya está cancelada');
+      if (reservation.status === ReservationStatus.CANCELLED) {
+        throw new BadRequestException('La reserva ya está cancelada');
+      }
+
+      const updatedReservation = {
+        ...reservation,
+        status: ReservationStatus.CANCELLED,
+        cancelledAt: new Date().toISOString(),
+        cancellationReason,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system' // TODO: Get from auth context
+      };
+
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      // TODO: Send cancellation notification
+      await this.scheduleCancellationNotification(reservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error cancelando reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al cancelar la reserva: ${error.message || 'Error desconocido'}`);
     }
-
-    const updatedReservation = {
-      ...reservation,
-      status: ReservationStatus.CANCELLED,
-      cancelledAt: new Date().toISOString(),
-      cancellationReason,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system' // TODO: Get from auth context
-    };
-
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    // TODO: Send cancellation notification
-    await this.scheduleCancellationNotification(reservation);
-    
-    return updatedReservation;
   }
 
   async confirmReservation(reservationId: string): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    if (reservation.status !== ReservationStatus.PENDING) {
-      throw new BadRequestException('Solo se pueden confirmar reservas pendientes');
+      if (reservation.status !== ReservationStatus.PENDING) {
+        throw new BadRequestException('Solo se pueden confirmar reservas pendientes');
+      }
+
+      const updatedReservation = {
+        ...reservation,
+        status: ReservationStatus.CONFIRMED,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system' // TODO: Get from auth context
+      };
+
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error confirmando reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al confirmar la reserva: ${error.message || 'Error desconocido'}`);
     }
-
-    const updatedReservation = {
-      ...reservation,
-      status: ReservationStatus.CONFIRMED,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system' // TODO: Get from auth context
-    };
-
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    return updatedReservation;
   }
 
   async seatReservation(reservationId: string, tableId: string): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    if (reservation.status !== ReservationStatus.CONFIRMED) {
-      throw new BadRequestException('Solo se pueden asignar mesas a reservas confirmadas');
+      if (reservation.status !== ReservationStatus.CONFIRMED) {
+        throw new BadRequestException('Solo se pueden asignar mesas a reservas confirmadas');
+      }
+
+      // Verificar que la mesa esté disponible
+      const table = await this.findTableById(tableId);
+      if (!table || table.status !== 'available') {
+        throw new BadRequestException('La mesa no está disponible');
+      }
+
+      const updatedReservation = {
+        ...reservation,
+        status: ReservationStatus.SEATED,
+        tableId,
+        tableNumber: table.number,
+        seatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system' // TODO: Get from auth context
+      };
+
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error asignando mesa a reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al asignar mesa a la reserva: ${error.message || 'Error desconocido'}`);
     }
-
-    // Verificar que la mesa esté disponible
-    const table = await this.findTableById(tableId);
-    if (!table || table.status !== 'available') {
-      throw new BadRequestException('La mesa no está disponible');
-    }
-
-    const updatedReservation = {
-      ...reservation,
-      status: ReservationStatus.SEATED,
-      tableId,
-      tableNumber: table.number,
-      seatedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system' // TODO: Get from auth context
-    };
-
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    return updatedReservation;
   }
 
   async completeReservation(reservationId: string, actualSpend?: number): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    const updatedReservation = {
-      ...reservation,
-      status: ReservationStatus.COMPLETED,
-      completedAt: new Date().toISOString(),
-      actualSpend: actualSpend || 0,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system' // TODO: Get from auth context
-    };
+      const updatedReservation = {
+        ...reservation,
+        status: ReservationStatus.COMPLETED,
+        completedAt: new Date().toISOString(),
+        actualSpend: actualSpend || 0,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system' // TODO: Get from auth context
+      };
 
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    // TODO: Update customer statistics
-    await this.updateCustomerStatistics(reservation.customerId, actualSpend || 0);
-    
-    // TODO: Schedule follow-up
-    await this.scheduleFollowUp(reservation);
-    
-    return updatedReservation;
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      // TODO: Update customer statistics
+      await this.updateCustomerStatistics(reservation.customerId, actualSpend || 0);
+      
+      // TODO: Schedule follow-up
+      await this.scheduleFollowUp(reservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error completando reserva ${reservationId}: ${error.message}`, error.stack);
+      throw new Error(`Error al completar la reserva: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async markAsNoShow(reservationId: string): Promise<Reservation> {
-    const reservation = await this.findReservationById(reservationId);
+    try {
+      const reservation = await this.findReservationById(reservationId);
 
-    const updatedReservation = {
-      ...reservation,
-      status: ReservationStatus.NO_SHOW,
-      noShowAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system' // TODO: Get from auth context
-    };
+      const updatedReservation = {
+        ...reservation,
+        status: ReservationStatus.NO_SHOW,
+        noShowAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system' // TODO: Get from auth context
+      };
 
-    await this.dynamoService.put('reservations', updatedReservation);
-    
-    return updatedReservation;
+      await this.dynamoService.put(this.reservationsTableName, updatedReservation);
+      
+      return updatedReservation;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error marcando reserva ${reservationId} como no-show: ${error.message}`, error.stack);
+      throw new Error(`Error al marcar la reserva como no-show: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   async checkAvailability(query: AvailabilityQueryDto, excludeReservationId?: string): Promise<boolean> {
-    const result = await this.dynamoService.scan(
-      this.reservationsTableName,
-      'reservationDate = :date AND #status IN (:confirmed, :seated)',
-      { '#status': 'status' },
-      { 
-        ':date': query.date,
-        ':confirmed': ReservationStatus.CONFIRMED,
-        ':seated': ReservationStatus.SEATED
+    try {
+      const result = await this.dynamoService.scan(
+        this.reservationsTableName,
+        'reservationDate = :date AND #status IN (:confirmed, :seated)',
+        { '#status': 'status' },
+        { 
+          ':date': query.date,
+          ':confirmed': ReservationStatus.CONFIRMED,
+          ':seated': ReservationStatus.SEATED
+        }
+      );
+
+      const reservations = result.items as Reservation[];
+
+      // Calcular capacidad disponible
+      const availableTables = await this.getAvailableTables(query.date);
+      let totalCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
+
+      // Restar capacidad ocupada por otras reservas en la misma fecha/hora
+      for (const reservation of reservations) {
+        if (excludeReservationId && reservation.reservationId === excludeReservationId) {
+          continue;
+        }
+
+        // Verificar solapamiento de horarios
+        const resStart = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+        const resEnd = new Date(resStart.getTime() + (reservation.duration || 120) * 60000);
+        
+        const queryStart = new Date(`${query.date}T${query.time}`);
+        const queryEnd = new Date(queryStart.getTime() + (query.duration || 120) * 60000);
+
+        if (queryStart < resEnd && queryEnd > resStart) {
+          totalCapacity -= reservation.partySize;
+        }
       }
-    );
 
-    const reservations = result.items as Reservation[];
-
-    // Calcular capacidad disponible
-    const availableTables = await this.getAvailableTables(query.date);
-    let totalCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
-
-    // Restar capacidad ocupada por otras reservas en la misma fecha/hora
-    for (const reservation of reservations) {
-      if (excludeReservationId && reservation.reservationId === excludeReservationId) {
-        continue;
-      }
-
-      // Verificar solapamiento de horarios
-      const resStart = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
-      const resEnd = new Date(resStart.getTime() + (reservation.duration || 120) * 60000);
-      
-      const queryStart = new Date(`${query.date}T${query.time}`);
-      const queryEnd = new Date(queryStart.getTime() + (query.duration || 120) * 60000);
-
-      if (queryStart < resEnd && queryEnd > resStart) {
-        totalCapacity -= reservation.partySize;
-      }
+      return totalCapacity >= query.partySize;
+    } catch (error) {
+      this.logger.error(`Error verificando disponibilidad: ${error.message}`, error.stack);
+      throw new Error(`Error al verificar disponibilidad: ${error.message || 'Error desconocido'}`);
     }
-
-    return totalCapacity >= query.partySize;
   }
 
   private async getAvailableTables(date: string): Promise<any[]> {
@@ -402,7 +485,12 @@ export class ReservationsService {
   }
 
   private async findTableById(tableId: string): Promise<any> {
-    return await this.dynamoService.get('tables', { id: tableId });
+    try {
+      return await this.dynamoService.get(this.tablesTableName, { id: tableId });
+    } catch (error) {
+      this.logger.error(`Error obteniendo mesa ${tableId}: ${error.message}`, error.stack);
+      throw new Error(`Error al obtener la mesa: ${error.message || 'Error desconocido'}`);
+    }
   }
 
   private generateConfirmationCode(): string {
@@ -432,17 +520,22 @@ export class ReservationsService {
   }
 
   private async updateCustomerStatistics(customerId: string, spend: number): Promise<void> {
-    const customer = await this.dynamoService.get(this.customersTableName, { customerId });
-    if (customer) {
-      const updatedCustomer = {
-        ...customer,
-        totalVisits: (customer.totalVisits || 0) + 1,
-        totalSpent: (customer.totalSpent || 0) + spend,
-        lastVisitDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      await this.dynamoService.put(this.customersTableName, updatedCustomer);
+    try {
+      const customer = await this.dynamoService.get(this.customersTableName, { customerId });
+      if (customer) {
+        const updatedCustomer = {
+          ...customer,
+          totalVisits: (customer.totalVisits || 0) + 1,
+          totalSpent: (customer.totalSpent || 0) + spend,
+          lastVisitDate: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        await this.dynamoService.put(this.customersTableName, updatedCustomer);
+      }
+    } catch (error) {
+      // No lanzar error aquí para no interrumpir el flujo principal
+      this.logger.warn(`Error actualizando estadísticas del cliente ${customerId}: ${error.message}`);
     }
   }
 }
