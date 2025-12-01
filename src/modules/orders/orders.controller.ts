@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
@@ -10,6 +10,7 @@ export class OrdersController {
 
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📝 Obtener todos los pedidos', 
     description: 'Retorna una lista de todos los pedidos del restaurante. Requiere autenticación como administrador o empleado. Incluye información de estado, mesa, productos, total, etc.' 

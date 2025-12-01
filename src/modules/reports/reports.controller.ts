@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
 
@@ -10,6 +10,7 @@ export class ReportsController {
 
   @Get('sales')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📈 Reporte de ventas',
     description: `Obtiene reporte detallado de ventas con análisis completo. Solo para administradores.

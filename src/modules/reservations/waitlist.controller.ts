@@ -40,6 +40,7 @@ export class WaitlistController {
   // GET /waitlist - Obtener lista de espera
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📋 Obtener lista de espera',
     description: `Obtiene lista de espera con filtros opcionales:
@@ -73,6 +74,7 @@ export class WaitlistController {
   // PATCH /waitlist/:id - Actualizar estado
   @Patch(':id')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🔄 Actualizar entrada de lista de espera',
     description: `Actualiza usando query parameter 'action':
@@ -112,6 +114,7 @@ export class WaitlistController {
   // DELETE /waitlist/:id - Eliminar entrada
   @Delete(':id')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🗑️ Eliminar entrada',
     description: 'Elimina una entrada de la lista de espera'
@@ -126,6 +129,7 @@ export class WaitlistController {
   // POST /waitlist/maintenance - Mantenimiento
   @Post('maintenance')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🔧 Mantenimiento de lista de espera',
     description: 'Expira entradas antiguas automáticamente'

@@ -10,6 +10,7 @@ import {
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiNoContentResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { TablesService } from './tables.service';
 import { CreateTableDto, UpdateTableDto } from './dto/table.dto';
@@ -93,6 +94,7 @@ export class TablesController {
 
   @Post()
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '➕ Crear nueva mesa', 
     description: 'Crea una nueva mesa en el restaurante. Solo administradores pueden crear mesas.' 
@@ -137,6 +139,7 @@ export class TablesController {
 
   @Put(':id')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '✏️ Actualizar mesa', 
     description: 'Actualiza los datos de una mesa existente. Solo administradores pueden actualizar mesas.' 
@@ -169,6 +172,7 @@ export class TablesController {
 
   @Delete(':id')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ 
     summary: '🗑️ Eliminar mesa', 

@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { BillsService } from './bills.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
@@ -10,6 +10,7 @@ export class BillsController {
 
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🧾 Obtener todas las facturas', 
     description: 'Retorna una lista de todas las facturas generadas. Requiere autenticación como administrador o empleado. Incluye información de pagos, métodos de pago, totales, etc.' 

@@ -50,6 +50,7 @@ export class ReservationsController {
   // GET /reservations - Listar con filtros
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📋 Obtener reservas',
     description: `Obtiene reservas con filtros opcionales:
@@ -140,6 +141,7 @@ export class ReservationsController {
   // GET /reservations/:id - Obtener por ID
   @Get(':id')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🔍 Obtener reserva por ID',
     description: 'Obtiene detalles completos de una reserva específica'
@@ -169,6 +171,7 @@ export class ReservationsController {
   // PATCH /reservations/:id - Actualizar
   @Patch(':id')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '✏️ Actualizar reserva',
     description: 'Actualiza datos de una reserva existente'
@@ -186,6 +189,7 @@ export class ReservationsController {
   // PATCH /reservations/:id/status - Cambiar estado
   @Patch(':id/status')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🔄 Cambiar estado de reserva',
     description: `Cambia el estado usando query parameter 'action':
@@ -237,6 +241,7 @@ export class ReservationsController {
   // DELETE /reservations/:id - Eliminar
   @Delete(':id')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🗑️ Eliminar reserva',
     description: 'Elimina permanentemente una reserva (usar con precaución)'

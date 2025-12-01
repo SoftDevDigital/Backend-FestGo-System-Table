@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { StockMovementsService } from './stock-movements.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
@@ -10,6 +10,7 @@ export class StockMovementsController {
 
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener todos los movimientos de stock' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
   async findAll() {
@@ -18,6 +19,7 @@ export class StockMovementsController {
 
   @Get('by-item/:itemId')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener movimientos por artículo de inventario' })
   @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos del artículo' })
@@ -27,6 +29,7 @@ export class StockMovementsController {
 
   @Get('by-type/:type')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener movimientos por tipo' })
   @ApiParam({ name: 'type', description: 'Tipo de movimiento' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos del tipo especificado' })
@@ -36,6 +39,7 @@ export class StockMovementsController {
 
   @Get('by-date-range')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener movimientos por rango de fechas' })
   @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
   @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
@@ -49,6 +53,7 @@ export class StockMovementsController {
 
   @Get('summary')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener resumen de movimientos' })
   @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
   @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
@@ -62,6 +67,7 @@ export class StockMovementsController {
 
   @Get('history/:itemId')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener historial de movimientos de un artículo' })
   @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
   @ApiQuery({ name: 'limit', required: false, description: 'Número máximo de movimientos a retornar' })
@@ -76,6 +82,7 @@ export class StockMovementsController {
 
   @Get('top-moving-items')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener artículos con más movimiento' })
   @ApiQuery({ name: 'days', required: false, description: 'Número de días a considerar' })
   @ApiQuery({ name: 'limit', required: false, description: 'Número de artículos a retornar' })

@@ -29,9 +29,54 @@ async function bootstrap() {
   logger.log('✅ ValidationPipe global configurado');
 
   // CORS
+  const corsOrigin = configService.get('CORS_ORIGIN', 'http://localhost:3005');
+  const isProduction = configService.get('NODE_ENV') === 'production';
+  
   app.enableCors({
-    origin: configService.get('CORS_ORIGIN', 'http://localhost:3005'),
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (Swagger UI desde el mismo dominio, Postman, curl, etc.)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      
+      // En producción, permitir el mismo dominio (para Swagger UI)
+      if (isProduction && origin.includes('api.festgo-bar.com')) {
+        callback(null, true);
+        return;
+      }
+      
+      // Lista de orígenes permitidos
+      const allowedOrigins = [
+        corsOrigin,
+        'http://localhost:3004',
+        'https://api.festgo-bar.com',
+        'http://localhost:3005',
+        'http://localhost:3000',
+      ];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        // En desarrollo, permitir todos para facilitar testing
+        // En producción, solo permitir orígenes conocidos
+        callback(null, !isProduction);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Accept', 
+      'X-Requested-With',
+      'Origin',
+      'Access-Control-Request-Method',
+      'Access-Control-Request-Headers'
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
   logger.log('✅ CORS habilitado');
 
@@ -85,8 +130,8 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer('http://localhost:3004', 'Servidor de Desarrollo')
-    .addServer('https://api.grovesystem.com', 'Servidor de Producción')
+    .addServer('http://localhost:3004/api/v1', 'Servidor de Desarrollo')
+    .addServer('https://api.festgo-bar.com/api/v1', 'Servidor de Producción')
     .addTag('auth', '🔐 Autenticación')
     .addTag('users', '👤 Usuarios')
     .addTag('tables', '🍽️ Mesas')

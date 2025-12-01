@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
 
@@ -10,6 +10,7 @@ export class AdminController {
 
   @Get('dashboard')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📊 Dashboard del administrador',
     description: `Obtiene métricas y estadísticas generales del sistema en tiempo real. Solo para administradores.

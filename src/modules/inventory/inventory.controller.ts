@@ -11,6 +11,7 @@ import {
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiNoContentResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto, UpdateInventoryItemDto } from './dto/inventory.dto';
@@ -24,6 +25,7 @@ export class InventoryController {
 
   @Get()
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📦 Obtener todos los artículos de inventario', 
     description: 'Retorna una lista completa de todos los artículos del inventario. Requiere autenticación como administrador o empleado. Incluye información de stock, costos, proveedores, ubicación, etc.' 
@@ -67,6 +69,7 @@ export class InventoryController {
 
   @Get('low-stock')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '⚠️ Obtener artículos con stock bajo', 
     description: 'Retorna solo los artículos que están por debajo del stock mínimo. Útil para alertas y reabastecimiento.' 
@@ -97,6 +100,7 @@ export class InventoryController {
 
   @Get('value')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '💰 Obtener valor total del inventario', 
     description: 'Calcula el valor total del inventario basado en el stock actual y el costo por unidad de cada artículo. Solo para administradores.' 
@@ -124,6 +128,7 @@ export class InventoryController {
 
   @Get('movements')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener movimientos de stock' })
   @ApiQuery({ name: 'itemId', required: false, description: 'ID del artículo específico' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
@@ -133,6 +138,7 @@ export class InventoryController {
 
   @Get(':id')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Obtener artículo de inventario por ID' })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Artículo de inventario encontrado' })
@@ -143,6 +149,7 @@ export class InventoryController {
 
   @Post()
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '➕ Crear nuevo artículo de inventario', 
     description: 'Crea un nuevo artículo en el inventario. Solo administradores pueden crear artículos. Se registra automáticamente un movimiento inicial de stock.' 
@@ -175,6 +182,7 @@ export class InventoryController {
 
   @Patch(':id')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '✏️ Actualizar artículo de inventario', 
     description: 'Actualiza los datos de un artículo existente. Solo administradores pueden actualizar artículos.' 
@@ -206,6 +214,7 @@ export class InventoryController {
 
   @Post(':id/adjust-stock')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '🔧 Ajustar stock de un artículo', 
     description: 'Ajusta manualmente el stock de un artículo (inventario físico, correcciones, etc.). Solo administradores. Se registra un movimiento de tipo "adjustment".' 
@@ -253,6 +262,7 @@ export class InventoryController {
 
   @Post(':id/consume')
   @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
     summary: '📉 Consumir stock de un artículo', 
     description: 'Registra el consumo de stock (usado en preparación de platos, ventas, etc.). Disponible para administradores y empleados. Se registra un movimiento de tipo "sale".' 
@@ -308,6 +318,7 @@ export class InventoryController {
 
   @Delete(':id')
   @AdminOnly()
+  @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ 
     summary: '🗑️ Eliminar artículo de inventario', 
