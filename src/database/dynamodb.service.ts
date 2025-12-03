@@ -43,13 +43,13 @@ export class DynamoDBService {
 
   async get(tableName: string, key: Record<string, any>) {
     try {
-      const command = new GetCommand({
-        TableName: tableName,
-        Key: key,
-      });
+    const command = new GetCommand({
+      TableName: tableName,
+      Key: key,
+    });
 
-      const result = await this.docClient.send(command);
-      return result.Item;
+    const result = await this.docClient.send(command);
+    return result.Item;
     } catch (error) {
       this.logger.error(`Error obteniendo item de tabla ${tableName}`, error.stack);
       throw new Error(`Error al obtener registro de la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -58,13 +58,13 @@ export class DynamoDBService {
 
   async put(tableName: string, item: Record<string, any>) {
     try {
-      const command = new PutCommand({
-        TableName: tableName,
-        Item: item,
-      });
+    const command = new PutCommand({
+      TableName: tableName,
+      Item: item,
+    });
 
-      await this.docClient.send(command);
-      return item;
+    await this.docClient.send(command);
+    return item;
     } catch (error) {
       this.logger.error(`Error insertando item en tabla ${tableName}`, error.stack);
       throw new Error(`Error al insertar registro en la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -79,17 +79,17 @@ export class DynamoDBService {
     expressionAttributeValues?: Record<string, any>,
   ) {
     try {
-      const command = new UpdateCommand({
-        TableName: tableName,
-        Key: key,
-        UpdateExpression: updateExpression,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        ReturnValues: 'ALL_NEW',
-      });
+    const command = new UpdateCommand({
+      TableName: tableName,
+      Key: key,
+      UpdateExpression: updateExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW',
+    });
 
-      const result = await this.docClient.send(command);
-      return result.Attributes;
+    const result = await this.docClient.send(command);
+    return result.Attributes;
     } catch (error) {
       this.logger.error(`Error actualizando item en tabla ${tableName}`, error.stack);
       throw new Error(`Error al actualizar registro en la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -98,12 +98,12 @@ export class DynamoDBService {
 
   async delete(tableName: string, key: Record<string, any>) {
     try {
-      const command = new DeleteCommand({
-        TableName: tableName,
-        Key: key,
-      });
+    const command = new DeleteCommand({
+      TableName: tableName,
+      Key: key,
+    });
 
-      await this.docClient.send(command);
+    await this.docClient.send(command);
     } catch (error) {
       this.logger.error(`Error eliminando item de tabla ${tableName}`, error.stack);
       throw new Error(`Error al eliminar registro de la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -119,21 +119,21 @@ export class DynamoDBService {
     exclusiveStartKey?: Record<string, any>,
   ) {
     try {
-      const command = new ScanCommand({
-        TableName: tableName,
-        FilterExpression: filterExpression,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        Limit: limit,
-        ExclusiveStartKey: exclusiveStartKey,
-      });
+    const command = new ScanCommand({
+      TableName: tableName,
+      FilterExpression: filterExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      Limit: limit,
+      ExclusiveStartKey: exclusiveStartKey,
+    });
 
-      const result = await this.docClient.send(command);
-      return {
-        items: result.Items,
-        lastEvaluatedKey: result.LastEvaluatedKey,
-        count: result.Count,
-      };
+    const result = await this.docClient.send(command);
+    return {
+      items: result.Items,
+      lastEvaluatedKey: result.LastEvaluatedKey,
+      count: result.Count,
+    };
     } catch (error) {
       this.logger.error(`Error escaneando tabla ${tableName}`, error.stack);
       throw new Error(`Error al escanear la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -152,24 +152,24 @@ export class DynamoDBService {
     scanIndexForward?: boolean,
   ) {
     try {
-      const command = new QueryCommand({
-        TableName: tableName,
-        IndexName: indexName,
-        KeyConditionExpression: keyConditionExpression,
-        FilterExpression: filterExpression,
-        ExpressionAttributeNames: expressionAttributeNames,
-        ExpressionAttributeValues: expressionAttributeValues,
-        Limit: limit,
-        ExclusiveStartKey: exclusiveStartKey,
-        ScanIndexForward: scanIndexForward,
-      });
+    const command = new QueryCommand({
+      TableName: tableName,
+      IndexName: indexName,
+      KeyConditionExpression: keyConditionExpression,
+      FilterExpression: filterExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      Limit: limit,
+      ExclusiveStartKey: exclusiveStartKey,
+      ScanIndexForward: scanIndexForward,
+    });
 
-      const result = await this.docClient.send(command);
-      return {
-        items: result.Items,
-        lastEvaluatedKey: result.LastEvaluatedKey,
-        count: result.Count,
-      };
+    const result = await this.docClient.send(command);
+    return {
+      items: result.Items,
+      lastEvaluatedKey: result.LastEvaluatedKey,
+      count: result.Count,
+    };
     } catch (error) {
       this.logger.error(`Error consultando tabla ${tableName}`, error.stack);
       throw new Error(`Error al consultar la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
@@ -178,12 +178,12 @@ export class DynamoDBService {
 
   async batchGet(requestItems: Record<string, any>) {
     try {
-      const command = new BatchGetCommand({
-        RequestItems: requestItems,
-      });
+    const command = new BatchGetCommand({
+      RequestItems: requestItems,
+    });
 
-      const result = await this.docClient.send(command);
-      return result.Responses;
+    const result = await this.docClient.send(command);
+    return result.Responses;
     } catch (error) {
       this.logger.error('Error en operación batchGet', error.stack);
       throw new Error(`Error al obtener múltiples registros: ${error.message || 'Error desconocido'}`);
@@ -192,12 +192,12 @@ export class DynamoDBService {
 
   async batchWrite(requestItems: Record<string, any>) {
     try {
-      const command = new BatchWriteCommand({
-        RequestItems: requestItems,
-      });
+    const command = new BatchWriteCommand({
+      RequestItems: requestItems,
+    });
 
-      const result = await this.docClient.send(command);
-      return result.UnprocessedItems;
+    const result = await this.docClient.send(command);
+    return result.UnprocessedItems;
     } catch (error) {
       this.logger.error('Error en operación batchWrite', error.stack);
       throw new Error(`Error al escribir múltiples registros: ${error.message || 'Error desconocido'}`);

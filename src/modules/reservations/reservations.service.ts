@@ -352,44 +352,83 @@ export class ReservationsService {
     }
   }
 
-  async checkAvailability(query: AvailabilityQueryDto, excludeReservationId?: string): Promise<boolean> {
-    try {
-      const result = await this.dynamoService.scan(
-        this.reservationsTableName,
-        'reservationDate = :date AND #status IN (:confirmed, :seated)',
-        { '#status': 'status' },
-        { 
-          ':date': query.date,
-          ':confirmed': ReservationStatus.CONFIRMED,
-          ':seated': ReservationStatus.SEATED
-        }
-      );
-
-      const reservations = result.items as Reservation[];
-
-      // Calcular capacidad disponible
+  private async checkAvailabilityInternal(query: AvailabilityQueryDto, excludeReservationId?: string): Promise<boolean> {
+    if (!query.time) {
+      // Si no hay time, solo verificamos capacidad total del día
       const availableTables = await this.getAvailableTables(query.date);
-      let totalCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
+      const totalCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
+      return totalCapacity >= query.partySize;
+    }
 
-      // Restar capacidad ocupada por otras reservas en la misma fecha/hora
-      for (const reservation of reservations) {
-        if (excludeReservationId && reservation.reservationId === excludeReservationId) {
-          continue;
-        }
+    const result = await this.dynamoService.scan(
+      this.reservationsTableName,
+      'reservationDate = :date AND #status IN (:confirmed, :seated)',
+      { '#status': 'status' },
+      { 
+        ':date': query.date,
+        ':confirmed': ReservationStatus.CONFIRMED,
+        ':seated': ReservationStatus.SEATED
+      }
+    );
 
-        // Verificar solapamiento de horarios
-        const resStart = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
-        const resEnd = new Date(resStart.getTime() + (reservation.duration || 120) * 60000);
-        
-        const queryStart = new Date(`${query.date}T${query.time}`);
-        const queryEnd = new Date(queryStart.getTime() + (query.duration || 120) * 60000);
+    const reservations = result.items as Reservation[];
 
-        if (queryStart < resEnd && queryEnd > resStart) {
-          totalCapacity -= reservation.partySize;
+    // Calcular capacidad disponible
+    const availableTables = await this.getAvailableTables(query.date);
+    let totalCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
+
+    // Restar capacidad ocupada por otras reservas en la misma fecha/hora
+    for (const reservation of reservations) {
+      if (excludeReservationId && reservation.reservationId === excludeReservationId) {
+        continue;
+      }
+
+      // Verificar solapamiento de horarios
+      const resStart = new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+      const resEnd = new Date(resStart.getTime() + (reservation.duration || 120) * 60000);
+      
+      const queryStart = new Date(`${query.date}T${query.time}`);
+      const queryEnd = new Date(queryStart.getTime() + (query.duration || 120) * 60000);
+
+      if (queryStart < resEnd && queryEnd > resStart) {
+        totalCapacity -= reservation.partySize;
+      }
+    }
+
+    return totalCapacity >= query.partySize;
+  }
+
+  async checkAvailability(query: AvailabilityQueryDto, excludeReservationId?: string): Promise<{ available: boolean; alternatives: string[] }> {
+    try {
+      const available = await this.checkAvailabilityInternal(query, excludeReservationId);
+      const alternatives: string[] = [];
+
+      // Si no hay disponibilidad, buscar alternativas cercanas
+      if (!available && query.time) {
+        const operatingHours = { start: '11:00', end: '22:00' };
+        const requestedTime = new Date(`${query.date}T${query.time}`);
+        const startTime = new Date(`${query.date}T${operatingHours.start}`);
+        const endTime = new Date(`${query.date}T${operatingHours.end}`);
+
+        // Buscar slots disponibles antes y después del horario solicitado
+        for (let offset = -60; offset <= 120 && alternatives.length < 3; offset += 30) {
+          const alternativeTime = new Date(requestedTime.getTime() + offset * 60000);
+          
+          if (alternativeTime >= startTime && alternativeTime <= endTime) {
+            const timeString = alternativeTime.toTimeString().substring(0, 5);
+            const isAltAvailable = await this.checkAvailabilityInternal({
+              ...query,
+              time: timeString
+            }, excludeReservationId);
+
+            if (isAltAvailable && timeString !== query.time) {
+              alternatives.push(timeString);
+            }
+          }
         }
       }
 
-      return totalCapacity >= query.partySize;
+      return { available, alternatives };
     } catch (error) {
       this.logger.error(`Error verificando disponibilidad: ${error.message}`, error.stack);
       throw new Error(`Error al verificar disponibilidad: ${error.message || 'Error desconocido'}`);
@@ -455,7 +494,7 @@ export class ReservationsService {
       const timeString = startTime.toTimeString().substring(0, 5);
       
       // Verificar disponibilidad para este slot
-      const isAvailable = await this.checkAvailability({
+      const isAvailable = await this.checkAvailabilityInternal({
         date,
         time: timeString,
         partySize,

@@ -21,7 +21,8 @@
     "terraform:init": "cd infrastructure && terraform init",
     "terraform:plan": "cd infrastructure && terraform plan",
     "terraform:apply": "cd infrastructure && terraform apply",
-    "terraform:destroy": "cd infrastructure && terraform destroy"
+    "terraform:destroy": "cd infrastructure && terraform destroy",
+    "create:admin": "ts-node -r tsconfig-paths/register scripts/create-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

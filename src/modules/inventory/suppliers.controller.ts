@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto, UpdateSupplierDto } from './dto/inventory.dto';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
+import { EntityNotFoundException } from '../../common/exceptions/business.exception';
 
 @ApiTags('suppliers')
 @Controller('suppliers')
@@ -68,11 +69,17 @@ export class SuppliersController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Actualizar proveedor' })
-  @ApiParam({ name: 'id', description: 'ID del proveedor' })
+  @ApiParam({ name: 'id', description: 'ID del proveedor', example: 'fc26390b-8b18-44dd-88b1-6ce437fa07da' })
+  @ApiBody({ type: UpdateSupplierDto })
   @ApiResponse({ status: 200, description: 'Proveedor actualizado exitosamente' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 404, description: 'Proveedor no encontrado' })
   async update(@Param('id') id: string, @Body() updateSupplierDto: UpdateSupplierDto) {
-    return this.suppliersService.update(id, updateSupplierDto);
+    try {
+      return await this.suppliersService.update(id, updateSupplierDto);
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Post(':id/update-order-stats')
@@ -80,12 +87,68 @@ export class SuppliersController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Actualizar estadísticas de órdenes del proveedor' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        orderAmount: {
+          type: 'number',
+          description: 'Monto de la orden',
+          example: 1500.50,
+          minimum: 0
+        }
+      },
+      required: ['orderAmount']
+    }
+  })
   @ApiResponse({ status: 200, description: 'Estadísticas actualizadas' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos - orderAmount es requerido y debe ser un número' })
+  @ApiResponse({ status: 404, description: 'Proveedor no encontrado' })
   async updateOrderStats(
     @Param('id') id: string,
-    @Body() updateStatsDto: { orderAmount: number }
+    @Body() updateStatsDto: { orderAmount?: number }
   ) {
-    return this.suppliersService.updateOrderStats(id, updateStatsDto.orderAmount);
+    try {
+      // Validar que el body exista
+      if (!updateStatsDto || Object.keys(updateStatsDto).length === 0) {
+        throw new BadRequestException('El cuerpo de la solicitud está vacío. Debes proporcionar el campo "orderAmount" con un valor numérico. Ejemplo: { "orderAmount": 1500.50 }');
+      }
+
+      // Validar que el body tenga orderAmount
+      if (updateStatsDto.orderAmount === undefined || updateStatsDto.orderAmount === null) {
+        throw new BadRequestException('El campo "orderAmount" es requerido en el cuerpo de la solicitud y no puede estar vacío. Ejemplo de formato correcto: { "orderAmount": 1500.50 }');
+      }
+
+      // Validar que sea un número
+      const orderAmount = Number(updateStatsDto.orderAmount);
+      if (isNaN(orderAmount) || !isFinite(orderAmount)) {
+        throw new BadRequestException(`El valor de "orderAmount" no es un número válido. Se recibió: "${updateStatsDto.orderAmount}". Debe ser un número (ejemplo: 1500.50)`);
+      }
+
+      if (orderAmount < 0) {
+        throw new BadRequestException(`El valor de "orderAmount" no puede ser negativo. Se recibió: ${orderAmount}. Debe ser un número mayor o igual a 0`);
+      }
+
+      return this.suppliersService.updateOrderStats(id, orderAmount);
+    } catch (error) {
+      // Re-lanzar excepciones HTTP y de negocio tal cual
+      if (error instanceof BadRequestException || error instanceof EntityNotFoundException) {
+        throw error;
+      }
+      // Si es un error del servicio con mensaje descriptivo, convertirlo a BadRequestException
+      if (error instanceof Error && error.message) {
+        // Si el mensaje indica que el proveedor no existe, lanzar EntityNotFoundException
+        if (error.message.includes('no encontrado') || error.message.includes('no existe')) {
+          throw new EntityNotFoundException('Proveedor', id);
+        }
+        throw new BadRequestException(error.message);
+      }
+      // Manejar errores que no son instancias de Error
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message) 
+        : 'Error desconocido. Por favor, verifica los datos enviados e intenta nuevamente';
+      throw new BadRequestException(`Error al procesar la solicitud de actualización de estadísticas: ${errorMessage}`);
+    }
   }
 
   @Delete(':id')

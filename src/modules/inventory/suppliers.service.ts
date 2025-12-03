@@ -35,7 +35,12 @@ export class SuppliersService {
 
   async findOne(id: string) {
     try {
-      const supplier = await this.dynamoDBService.get(this.tableName, { id });
+      // Validar formato del ID
+      if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new Error('El ID del proveedor es requerido y debe ser una cadena de texto válida');
+      }
+
+      const supplier = await this.dynamoDBService.get(this.tableName, { id: id.trim() });
       if (!supplier) {
         throw new EntityNotFoundException('Proveedor', id);
       }
@@ -44,8 +49,11 @@ export class SuppliersService {
       if (error instanceof EntityNotFoundException) {
         throw error;
       }
-      this.logger.error(`Error obteniendo proveedor ${id}: ${error.message}`, error.stack);
-      throw new Error(`Error al obtener el proveedor: ${error.message || 'Error desconocido'}`);
+      if (error instanceof Error && error.message.includes('ID del proveedor es requerido')) {
+        throw new Error(`Error de validación: ${error.message}. Por favor, proporciona un ID válido.`);
+      }
+      this.logger.error(`Error obteniendo proveedor con ID "${id}": ${error.message}`, error.stack);
+      throw new Error(`No se pudo obtener el proveedor con ID "${id}". Error: ${error.message || 'Error desconocido al consultar la base de datos'}`);
     }
   }
 
@@ -90,16 +98,50 @@ export class SuppliersService {
 
       let updateExpression = 'SET #updatedAt = :updatedAt';
       const expressionAttributeNames = { '#updatedAt': 'updatedAt' };
-      const expressionAttributeValues = { ':updatedAt': new Date().toISOString() };
+      const expressionAttributeValues: Record<string, any> = { ':updatedAt': new Date().toISOString() };
 
-      // Agregar campos a actualizar dinámicamente
+      // Manejar el objeto address por separado si existe
+      let addressToUpdate: any = undefined;
+      if (updateSupplierDto.address) {
+        addressToUpdate = {
+          street: updateSupplierDto.address.street || '',
+          city: updateSupplierDto.address.city || '',
+          state: updateSupplierDto.address.state || '',
+          zipCode: updateSupplierDto.address.zipCode || '',
+          country: updateSupplierDto.address.country || '',
+        };
+      }
+
+      // Agregar campos a actualizar dinámicamente, filtrando valores undefined y address
       for (const [key, value] of Object.entries(updateSupplierDto)) {
+        // Ignorar valores undefined y el objeto address (se maneja por separado)
+        if (value === undefined || key === 'address') {
+          continue;
+        }
+
         const attributeName = `#${key}`;
         const attributeValue = `:${key}`;
         
         updateExpression += `, ${attributeName} = ${attributeValue}`;
         expressionAttributeNames[attributeName] = key;
-        expressionAttributeValues[attributeValue] = value;
+        
+        // Asegurar que los valores numéricos sean números válidos
+        if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
+          this.logger.warn(`Valor numérico inválido para ${key}: ${value}, usando 0`);
+          expressionAttributeValues[attributeValue] = 0;
+        } else if (value === null) {
+          // Manejar null explícitamente
+          expressionAttributeValues[attributeValue] = null;
+        } else {
+          expressionAttributeValues[attributeValue] = value;
+        }
+      }
+
+      // Agregar address si existe
+      if (addressToUpdate !== undefined) {
+        updateExpression += `, #address = :address`;
+        expressionAttributeNames['#address'] = 'address';
+        expressionAttributeValues[':address'] = addressToUpdate;
       }
 
       const updatedSupplier = await this.dynamoDBService.update(
@@ -116,8 +158,17 @@ export class SuppliersService {
       if (error instanceof EntityNotFoundException) {
         throw error;
       }
-      this.logger.error(`Error actualizando proveedor ${id}: ${error.message}`, error.stack);
-      throw new Error(`Error al actualizar el proveedor: ${error.message || 'Error desconocido'}`);
+      this.logger.error(`Error actualizando proveedor con ID "${id}": ${error.message}`, error.stack);
+      
+      // Mensajes más descriptivos según el tipo de error
+      if (error.message && error.message.includes('ValidationException')) {
+        throw new Error(`Error de validación al actualizar el proveedor: Los datos proporcionados no son válidos. Verifica que todos los campos tengan el formato correcto.`);
+      }
+      if (error.message && error.message.includes('ConditionalCheckFailedException')) {
+        throw new Error(`Error al actualizar el proveedor: El proveedor con ID "${id}" no existe o fue modificado por otro usuario. Por favor, verifica el ID e intenta nuevamente.`);
+      }
+      
+      throw new Error(`No se pudo actualizar el proveedor con ID "${id}". Error: ${error.message || 'Error desconocido al actualizar en la base de datos'}`);
     }
   }
 
@@ -137,15 +188,72 @@ export class SuppliersService {
   }
 
   async updateOrderStats(supplierId: string, orderAmount: number) {
-    const supplier = await this.findOne(supplierId);
-    
-    const updatedSupplier = await this.update(supplierId, {
-      totalOrders: supplier.totalOrders + 1,
-      totalAmount: supplier.totalAmount + orderAmount,
-      lastOrderDate: new Date().toISOString(),
-    });
+    try {
+      // Validar que supplierId sea válido
+      if (!supplierId || typeof supplierId !== 'string' || supplierId.trim() === '') {
+        throw new Error('El ID del proveedor es requerido y debe ser una cadena de texto válida');
+      }
 
-    return updatedSupplier;
+      // Validar que orderAmount sea un número válido
+      if (orderAmount === undefined || orderAmount === null) {
+        throw new Error('El campo "orderAmount" es requerido y no puede estar vacío. Debe ser un número mayor o igual a 0');
+      }
+
+      const amount = Number(orderAmount);
+      if (isNaN(amount) || !isFinite(amount)) {
+        throw new Error(`El valor de "orderAmount" no es un número válido. Se recibió: "${orderAmount}". Debe ser un número (ejemplo: 1500.50)`);
+      }
+      
+      if (amount < 0) {
+        throw new Error(`El valor de "orderAmount" no puede ser negativo. Se recibió: ${amount}. Debe ser un número mayor o igual a 0`);
+      }
+
+      const supplier = await this.findOne(supplierId);
+      
+      // Asegurar que los valores numéricos existan y sean válidos (pueden ser undefined/null/string en registros antiguos)
+      const currentTotalOrders = this.safeNumber(supplier.totalOrders, 0);
+      const currentTotalAmount = this.safeNumber(supplier.totalAmount, 0);
+      
+      const updatedSupplier = await this.update(supplierId, {
+        totalOrders: currentTotalOrders + 1,
+        totalAmount: currentTotalAmount + amount,
+        lastOrderDate: new Date().toISOString(),
+      });
+
+      this.logger.log(`Order stats updated for supplier ${supplierId}: +${amount} (Total: ${currentTotalAmount + amount})`);
+      return updatedSupplier;
+    } catch (error) {
+      if (error instanceof EntityNotFoundException) {
+        throw error;
+      }
+      // Si el error ya tiene un mensaje descriptivo, lanzarlo tal cual
+      if (error instanceof Error && (
+        error.message.includes('ID del proveedor es requerido') ||
+        error.message.includes('orderAmount') ||
+        error.message.includes('no es un número válido')
+      )) {
+        throw error;
+      }
+      this.logger.error(`Error actualizando estadísticas de órdenes del proveedor "${supplierId}" con monto "${orderAmount}": ${error.message}`, error.stack);
+      throw new Error(`No se pudieron actualizar las estadísticas de órdenes del proveedor con ID "${supplierId}". Error: ${error.message || 'Error desconocido al procesar la actualización'}`);
+    }
+  }
+
+  /**
+   * Convierte un valor a número de forma segura
+   */
+  private safeNumber(value: any, defaultValue: number = 0): number {
+    if (value === null || value === undefined) {
+      return defaultValue;
+    }
+    if (typeof value === 'number') {
+      return isNaN(value) || !isFinite(value) ? defaultValue : value;
+    }
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) || !isFinite(parsed) ? defaultValue : parsed;
+    }
+    return defaultValue;
   }
 
   async getTopSuppliersByVolume(limit = 10) {

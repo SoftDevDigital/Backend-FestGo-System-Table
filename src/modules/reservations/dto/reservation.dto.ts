@@ -259,21 +259,28 @@ export class CreateWaitlistEntryDto {
 }
 
 export class AvailabilityQueryDto {
+  @IsOptional()
+  @IsString()
+  type?: string;
+
   @IsDateString()
   date: string;
 
+  @IsOptional()
   @IsString()
-  time: string;
+  time?: string;
 
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(20)
   partySize: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(30)
-  @Max(480)
+  @Max(180)
   duration?: number;
 
   @IsOptional()
