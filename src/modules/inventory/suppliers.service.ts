@@ -125,15 +125,43 @@ export class SuppliersService {
         updateExpression += `, ${attributeName} = ${attributeValue}`;
         expressionAttributeNames[attributeName] = key;
         
-        // Asegurar que los valores numéricos sean números válidos
-        if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
-          this.logger.warn(`Valor numérico inválido para ${key}: ${value}, usando 0`);
-          expressionAttributeValues[attributeValue] = 0;
-        } else if (value === null) {
-          // Manejar null explícitamente
+        // Procesar el valor según su tipo
+        let processedValue = value;
+        
+        // Convertir strings booleanos a booleanos reales
+        if (typeof value === 'string' && (value.toLowerCase() === 'true' || value.toLowerCase() === 'false')) {
+          processedValue = value.toLowerCase() === 'true';
+        }
+        // Convertir strings numéricos a números (para campos como paymentTerms, volumeDiscount)
+        else if (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '') {
+          const numValue = Number(value);
+          // Solo convertir si el campo es típicamente numérico
+          if (['paymentTerms', 'volumeDiscount', 'totalOrders', 'totalAmount'].includes(key)) {
+            processedValue = numValue;
+          }
+        }
+        
+        // Validar y procesar valores numéricos
+        if (typeof processedValue === 'number') {
+          if (isNaN(processedValue) || !isFinite(processedValue)) {
+            this.logger.warn(`Valor numérico inválido para ${key}: ${processedValue}, usando 0`);
+            expressionAttributeValues[attributeValue] = 0;
+          } else {
+            expressionAttributeValues[attributeValue] = processedValue;
+          }
+        } 
+        // Manejar null explícitamente
+        else if (processedValue === null) {
           expressionAttributeValues[attributeValue] = null;
-        } else {
-          expressionAttributeValues[attributeValue] = value;
+        } 
+        // Manejar strings vacíos (convertir a null o mantener según el campo)
+        else if (typeof processedValue === 'string' && processedValue.trim() === '' && ['notes', 'contactName', 'email', 'phone'].includes(key)) {
+          // Para campos opcionales de texto, permitir strings vacíos
+          expressionAttributeValues[attributeValue] = processedValue.trim();
+        }
+        // Todos los demás valores (strings, booleanos, etc.)
+        else {
+          expressionAttributeValues[attributeValue] = processedValue;
         }
       }
 

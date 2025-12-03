@@ -210,6 +210,16 @@ export class CreateSupplierDto {
 export class UpdateSupplierDto extends PartialType(CreateSupplierDto) {
   @ApiPropertyOptional({ description: 'Estado activo del proveedor' })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return value;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (lower === 'true' || lower === '1') return true;
+      if (lower === 'false' || lower === '0') return false;
+    }
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 
