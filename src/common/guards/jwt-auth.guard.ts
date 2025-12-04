@@ -45,7 +45,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     // Si no es público, aplicar lógica normal
     if (err || !user) {
-      throw err || new UnauthorizedException('Token inválido o expirado');
+      // Lanzar UnauthorizedException sin stack trace innecesario
+      // El error será manejado por los filtros sin mostrar información técnica
+      const errorMessage = err?.message || 'Token inválido o expirado';
+      throw new UnauthorizedException(errorMessage);
     }
     return user;
   }

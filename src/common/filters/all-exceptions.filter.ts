@@ -34,10 +34,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const errorResponse = exception.getResponse();
       
       if (typeof errorResponse === 'object' && errorResponse !== null) {
-        message = (errorResponse as any).message || exception.message;
-        details = errorResponse;
+        const responseObj = errorResponse as any;
+        // Para errores 401 (Unauthorized), usar mensaje simple sin detalles duplicados
+        if (status === 401) {
+          message = responseObj.message || exception.message || 'No autorizado';
+          errorCode = 'UNAUTHORIZED';
+          // No incluir details para errores 401 para evitar información duplicada
+          details = undefined;
+        } else {
+          message = responseObj.message || exception.message;
+          // Solo incluir details si no es un error simple de validación
+          if (status !== 400 || !Array.isArray(responseObj.message)) {
+            details = responseObj;
+          }
+        }
       } else {
         message = errorResponse as string;
+        // Para errores 401, no incluir details
+        if (status === 401) {
+          errorCode = 'UNAUTHORIZED';
+          details = undefined;
+        }
       }
     } else if (exception instanceof Error) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;

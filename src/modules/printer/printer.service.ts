@@ -60,8 +60,12 @@ export class PrinterService {
 
       return { success: true, ticket };
     } catch (error) {
-      this.logger.error(`Error generando ticket de impresión: ${error.message}`, error.stack);
-      throw new Error(`Error al generar ticket de impresión: ${error.message || 'Error desconocido'}`);
+      // Solo loguear errores inesperados con stack trace
+      this.logger.error(
+        `Error inesperado generando ticket de impresión: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new Error('Error al generar ticket de impresión. Por favor, intenta nuevamente.');
     }
   }
 }
