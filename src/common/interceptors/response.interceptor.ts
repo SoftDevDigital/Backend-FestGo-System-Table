@@ -20,16 +20,52 @@ export class ResponseInterceptor implements NestInterceptor {
     const startTime = Date.now();
 
     return next.handle().pipe(
-      map(data => ({
-        success: true,
-        statusCode: response.statusCode,
-        message: this.getSuccessMessage(request.method, response.statusCode),
-        data,
-        timestamp: new Date().toISOString(),
-        ...(process.env.NODE_ENV !== 'production' && {
-          executionTime: `${Date.now() - startTime}ms`,
-        }),
-      })),
+      map(data => {
+        try {
+          // Si la respuesta ya tiene la estructura { success, message, data }, no envolverla de nuevo
+          if (data && typeof data === 'object' && 'success' in data && 'message' in data && 'data' in data) {
+            // Solo agregar metadata adicional sin duplicar la estructura
+            const metadata = {
+              statusCode: response.statusCode,
+              timestamp: new Date().toISOString(),
+            };
+            
+            if (process.env.NODE_ENV !== 'production') {
+              (metadata as any).executionTime = `${Date.now() - startTime}ms`;
+            }
+            
+            return {
+              ...data,
+              ...metadata,
+            };
+          }
+          
+          // Si no tiene la estructura, envolverla normalmente
+          const wrapped = {
+            success: true,
+            statusCode: response.statusCode,
+            message: this.getSuccessMessage(request.method, response.statusCode),
+            data,
+            timestamp: new Date().toISOString(),
+          };
+          
+          if (process.env.NODE_ENV !== 'production') {
+            (wrapped as any).executionTime = `${Date.now() - startTime}ms`;
+          }
+          
+          return wrapped;
+        } catch (error) {
+          this.logger.error(`Error en ResponseInterceptor: ${error.message}`, error.stack);
+          // Si hay error al procesar, retornar respuesta básica
+          return {
+            success: false,
+            statusCode: 500,
+            message: 'Error al procesar la respuesta',
+            error: error.message,
+            timestamp: new Date().toISOString(),
+          };
+        }
+      }),
       tap(() => {
         const executionTime = Date.now() - startTime;
         this.logger.log(
