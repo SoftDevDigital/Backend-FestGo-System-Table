@@ -43,14 +43,25 @@ export class LoggingInterceptor implements NestInterceptor {
         },
         error: (error) => {
           const executionTime = Date.now() - startTime;
-          this.logger.error(
-            `Error Response: ${method} ${url} - ${executionTime}ms`,
-            {
-              error: error.message,
-              stack: error.stack,
-              executionTime,
-            },
-          );
+          const status = error?.status || error?.statusCode || 500;
+          
+          // Solo mostrar stack traces para errores del servidor (5xx)
+          // Para errores del cliente (4xx), solo mostrar el mensaje
+          if (status >= 500) {
+            this.logger.error(
+              `Error Response: ${method} ${url} - ${status} - ${executionTime}ms`,
+              {
+                error: error.message,
+                stack: error.stack,
+                executionTime,
+              },
+            );
+          } else {
+            // Errores 4xx son esperados, solo loguear como warning sin stack trace
+            this.logger.warn(
+              `Client Error: ${method} ${url} - ${status} - ${error.message || 'Bad Request'} - ${executionTime}ms`,
+            );
+          }
         },
       }),
     );

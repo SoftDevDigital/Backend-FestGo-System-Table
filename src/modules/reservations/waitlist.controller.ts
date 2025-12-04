@@ -87,12 +87,20 @@ export class WaitlistController {
       const waitlistEntry = await this.waitlistService.addToWaitlist(createWaitlistDto);
       return { success: true, message: 'Added to waitlist', data: waitlistEntry };
     } catch (error) {
+      // Si es un BadRequestException (error esperado), relanzarlo sin loguear
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.error(`Error agregando a waitlist: ${error.message}`, error.stack);
+      
+      // Solo loguear errores inesperados (errores del servidor) con stack trace
+      this.logger.error(
+        `Error inesperado agregando a waitlist: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      
+      // Lanzar error genérico sin exponer detalles técnicos
       throw new BadRequestException(
-        `No se pudo agregar a la lista de espera. ${error.message || 'Error desconocido'}`
+        'No se pudo agregar a la lista de espera. Por favor, intenta nuevamente.'
       );
     }
   }

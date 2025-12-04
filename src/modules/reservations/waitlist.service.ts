@@ -108,12 +108,20 @@ export class WaitlistService {
       
       return waitlistEntry;
     } catch (error) {
+      // Si es un BadRequestException (error esperado del cliente), relanzarlo sin loguear
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.error(`Error agregando entrada a waitlist: ${error.message}`, error.stack);
+      
+      // Solo loguear errores inesperados (errores del servidor) con stack trace
+      this.logger.error(
+        `Error inesperado agregando entrada a waitlist: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      
+      // Lanzar error genérico sin exponer detalles técnicos
       throw new BadRequestException(
-        `No se pudo agregar a la lista de espera. Verifica que todos los datos sean correctos: ${error.message || 'Error desconocido'}`
+        'No se pudo agregar a la lista de espera. Por favor, verifica que todos los datos sean correctos e intenta nuevamente.'
       );
     }
   }

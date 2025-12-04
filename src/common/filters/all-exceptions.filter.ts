@@ -68,13 +68,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     // Log error details
+    // Solo loguear errores del servidor (5xx) con stack traces
+    // Errores del cliente (4xx) son esperados y no necesitan stack traces
     if (status >= 500) {
       this.logger.error(
         `${request.method} ${request.url} - ${status} - ${message}`,
         exception instanceof Error ? exception.stack : JSON.stringify(exception),
       );
-    } else if (status >= 400) {
-      this.logger.warn(
+    } else if (status >= 400 && process.env.NODE_ENV !== 'production') {
+      // En desarrollo, loguear errores 4xx como debug (sin stack trace)
+      this.logger.debug(
         `${request.method} ${request.url} - ${status} - ${message}`,
       );
     }

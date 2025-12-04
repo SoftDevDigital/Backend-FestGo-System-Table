@@ -42,9 +42,13 @@ export class ValidationExceptionFilter implements ExceptionFilter {
       method: request.method,
     };
 
-    this.logger.warn(
-      `Validation Error: ${request.method} ${request.url} - ${JSON.stringify(validationErrors)}`,
-    );
+    // Solo loguear errores de validación en desarrollo o si son críticos
+    // No loguear errores de validación normales (son esperados del cliente)
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(
+        `Validation Error: ${request.method} ${request.url} - ${message}`,
+      );
+    }
 
     response.status(status).json(errorResponse);
   }

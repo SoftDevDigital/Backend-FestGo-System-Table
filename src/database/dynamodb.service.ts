@@ -66,8 +66,13 @@ export class DynamoDBService {
     await this.docClient.send(command);
     return item;
     } catch (error) {
-      this.logger.error(`Error insertando item en tabla ${tableName}`, error.stack);
-      throw new Error(`Error al insertar registro en la tabla ${tableName}: ${error.message || 'Error desconocido'}`);
+      // Loguear error con stack trace solo si es un error inesperado
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Error insertando item en tabla ${tableName}: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new Error(`Error al insertar registro en la tabla ${tableName}: ${errorMessage}`);
     }
   }
 
