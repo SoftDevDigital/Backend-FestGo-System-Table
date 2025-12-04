@@ -52,8 +52,9 @@ export class ReservationsController {
     
     **Flujo recomendado:**
     1. Consultar disponibilidad: GET /reservations/availability/:date
-    2. Seleccionar mesa y horario de los disponibles
-    3. Crear reserva: POST /reservations con tableNumber y reservationTime
+    2. Seleccionar mesa y horario de los disponibles (de availableTimeSlots)
+    3. Crear reserva: POST /reservations con tableNumber/tableId y reservationTime
+    4. La mesa y horario seleccionados quedarán bloqueados y no disponibles para otros clientes
     
     **Campos requeridos:**
     - customerDetails (firstName, lastName, phone)
@@ -725,17 +726,51 @@ export class ReservationsController {
     **Retorna:**
     - Fecha consultada
     - Lista de mesas disponibles con:
-      - id, number, capacity, location, status, features, isAccessible
+      - id: ID único de la mesa
+      - number: Número de la mesa
+      - capacity: Capacidad de la mesa
+      - location: Ubicación de la mesa (Interior, Terraza, etc.)
+      - status: Siempre "available" en este endpoint (el estado físico no afecta la disponibilidad futura)
+      - features: Características especiales de la mesa
+      - isAccessible: Si la mesa es accesible para personas con movilidad reducida
       - availableTimeSlots: Array de horarios disponibles (formato HH:mm) para esa mesa
-    - totalTables: Total de mesas con disponibilidad
+        - Solo muestra horarios donde hay al menos 60 minutos disponibles antes de la próxima reserva
+        - Los horarios ya reservados NO aparecen en este array
+    - totalTables: Total de mesas con al menos un horario disponible
     - totalAvailableSlots: Total de slots de horarios disponibles
+    
+    **Lógica de disponibilidad:**
+    - Un horario está disponible si:
+      1. No hay una reserva activa en ese horario
+      2. Hay al menos 60 minutos disponibles antes de la próxima reserva (duración mínima)
+    - Si una mesa tiene reserva a las 09:00, los horarios 08:00-08:30 pueden estar disponibles
+      solo si hay suficiente tiempo (mínimo 60 min) antes de las 09:00
     
     **Uso:**
     1. El frontend muestra un calendario (manejado por el frontend)
     2. Cuando el usuario selecciona una fecha, consulta este endpoint
-    3. El frontend muestra las mesas disponibles y sus horarios
-    4. El usuario selecciona mesa y horario
-    5. El usuario crea la reserva usando POST /reservations`
+    3. El frontend muestra las mesas disponibles y sus horarios (solo los que aparecen en availableTimeSlots)
+    4. El usuario selecciona mesa y horario de los disponibles
+    5. El usuario crea la reserva usando POST /reservations con tableNumber/tableId y reservationTime
+    
+    **Ejemplo de respuesta:**
+    \`\`\`json
+    {
+      "date": "2025-12-15",
+      "tables": [
+        {
+          "id": "4e1f5d03-6960-4ffb-be8c-1cc0c76cd9c5",
+          "number": 1,
+          "capacity": 4,
+          "location": "Interior",
+          "status": "available",
+          "availableTimeSlots": ["08:00", "10:30", "11:00", ...]
+        }
+      ],
+      "totalTables": 2,
+      "totalAvailableSlots": 47
+    }
+    \`\`\``
   })
   @ApiParam({ name: 'date', description: 'Fecha en formato YYYY-MM-DD', example: '2025-12-15' })
   @ApiQuery({ name: 'partySize', required: false, description: 'Filtrar mesas por capacidad mínima', example: 4 })
