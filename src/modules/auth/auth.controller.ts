@@ -21,8 +21,11 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
-    summary: '🔐 Iniciar sesión', 
-    description: 'Autentica un usuario con email y contraseña. Retorna un token JWT que debe usarse en el header Authorization: Bearer <token> para acceder a endpoints protegidos.' 
+    summary: '🔐 Iniciar sesión 🔓', 
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Autentica un usuario con email y contraseña. Retorna un token JWT que debe usarse en el header Authorization: Bearer <token> para acceder a endpoints protegidos.` 
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ 
@@ -76,8 +79,11 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
-    summary: '📝 Registrar nuevo usuario', 
-    description: 'Crea una nueva cuenta de usuario. Todos los usuarios registrados tendrán el rol "customer" por defecto. Solo un administrador puede cambiar el rol después del registro.' 
+    summary: '📝 Registrar nuevo usuario 🔓', 
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Crea una nueva cuenta de usuario. Todos los usuarios registrados tendrán el rol "customer" por defecto. Solo un administrador puede cambiar el rol después del registro.` 
   })
   @ApiBody({ type: RegisterDto })
   @ApiCreatedResponse({ 

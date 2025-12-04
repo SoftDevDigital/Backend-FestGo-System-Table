@@ -26,8 +26,11 @@ export class TablesController {
   @Get()
   @Public()
   @ApiOperation({ 
-    summary: '🍽️ Obtener todas las mesas', 
-    description: 'Retorna una lista de todas las mesas disponibles en el restaurante. Endpoint público, no requiere autenticación.' 
+    summary: '🍽️ Obtener todas las mesas 🔓', 
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Retorna una lista de todas las mesas disponibles en el restaurante.` 
   })
   @ApiOkResponse({ 
     description: '✅ Lista de mesas obtenida exitosamente',
@@ -57,8 +60,11 @@ export class TablesController {
   @Get(':id')
   @Public()
   @ApiOperation({ 
-    summary: '🔍 Obtener mesa por ID', 
-    description: 'Obtiene los detalles de una mesa específica por su ID.' 
+    summary: '🔍 Obtener mesa por ID 🔓', 
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Obtiene los detalles de una mesa específica por su ID.` 
   })
   @ApiParam({ name: 'id', description: 'ID único de la mesa', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiOkResponse({ 
@@ -96,8 +102,11 @@ export class TablesController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '➕ Crear nueva mesa', 
-    description: 'Crea una nueva mesa en el restaurante. Solo administradores pueden crear mesas.' 
+    summary: '➕ Crear nueva mesa 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Crea una nueva mesa en el restaurante.` 
   })
   @ApiBody({ type: CreateTableDto })
   @ApiCreatedResponse({ 
@@ -141,8 +150,11 @@ export class TablesController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '✏️ Actualizar mesa', 
-    description: 'Actualiza los datos de una mesa existente. Solo administradores pueden actualizar mesas.' 
+    summary: '✏️ Actualizar mesa 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Actualiza los datos de una mesa existente.` 
   })
   @ApiParam({ name: 'id', description: 'ID único de la mesa', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiBody({ type: UpdateTableDto })
@@ -175,8 +187,11 @@ export class TablesController {
   @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ 
-    summary: '🗑️ Eliminar mesa', 
-    description: 'Elimina permanentemente una mesa del sistema. Solo administradores pueden eliminar mesas. Esta acción no se puede deshacer.' 
+    summary: '🗑️ Eliminar mesa 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Elimina permanentemente una mesa del sistema. Esta acción no se puede deshacer.` 
   })
   @ApiParam({ name: 'id', description: 'ID único de la mesa', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiNoContentResponse({ description: '✅ Mesa eliminada exitosamente' })

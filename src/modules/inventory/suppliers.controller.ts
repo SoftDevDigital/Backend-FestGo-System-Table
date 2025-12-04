@@ -14,7 +14,13 @@ export class SuppliersController {
   @Get()
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener todos los proveedores' })
+  @ApiOperation({ 
+    summary: '📋 Obtener todos los proveedores 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene una lista de todos los proveedores del sistema.`
+  })
   @ApiQuery({ name: 'active', required: false, description: 'Filtrar solo proveedores activos' })
   @ApiResponse({ status: 200, description: 'Lista de proveedores' })
   async findAll(@Query('active') active?: string) {
@@ -27,7 +33,13 @@ export class SuppliersController {
   @Get('top-by-volume')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener top proveedores por volumen' })
+  @ApiOperation({ 
+    summary: '📊 Obtener top proveedores por volumen 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene los proveedores con mayor volumen de órdenes.`
+  })
   @ApiQuery({ name: 'limit', required: false, description: 'Número de proveedores a retornar' })
   @ApiResponse({ status: 200, description: 'Top proveedores por volumen' })
   async getTopSuppliersByVolume(@Query('limit') limit?: string) {
@@ -38,7 +50,13 @@ export class SuppliersController {
   @Get('by-payment-terms')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Agrupar proveedores por términos de pago' })
+  @ApiOperation({ 
+    summary: '💳 Agrupar proveedores por términos de pago 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Agrupa los proveedores según sus términos de pago.`
+  })
   @ApiResponse({ status: 200, description: 'Proveedores agrupados por términos de pago' })
   async getSuppliersByPaymentTerms() {
     return this.suppliersService.getSuppliersByPaymentTerms();
@@ -47,7 +65,13 @@ export class SuppliersController {
   @Get(':id')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener proveedor por ID' })
+  @ApiOperation({ 
+    summary: '🔍 Obtener proveedor por ID 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene los detalles de un proveedor específico.`
+  })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 200, description: 'Proveedor encontrado' })
   @ApiResponse({ status: 404, description: 'Proveedor no encontrado' })
@@ -58,7 +82,13 @@ export class SuppliersController {
   @Post()
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Crear nuevo proveedor' })
+  @ApiOperation({ 
+    summary: '➕ Crear nuevo proveedor 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Crea un nuevo proveedor en el sistema.`
+  })
   @ApiResponse({ status: 201, description: 'Proveedor creado exitosamente' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   async create(@Body() createSupplierDto: CreateSupplierDto) {
@@ -68,7 +98,13 @@ export class SuppliersController {
   @Patch(':id')
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Actualizar proveedor' })
+  @ApiOperation({ 
+    summary: '✏️ Actualizar proveedor 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Actualiza la información de un proveedor existente.`
+  })
   @ApiParam({ name: 'id', description: 'ID del proveedor', example: 'fc26390b-8b18-44dd-88b1-6ce437fa07da' })
   @ApiBody({ type: UpdateSupplierDto })
   @ApiResponse({ status: 200, description: 'Proveedor actualizado exitosamente' })
@@ -85,7 +121,13 @@ export class SuppliersController {
   @Post(':id/update-order-stats')
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Actualizar estadísticas de órdenes del proveedor' })
+  @ApiOperation({ 
+    summary: '📈 Actualizar estadísticas de órdenes del proveedor 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Actualiza las estadísticas de órdenes de un proveedor (volumen total, número de órdenes, etc.).`
+  })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiBody({
     schema: {
@@ -155,7 +197,13 @@ export class SuppliersController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar proveedor' })
+  @ApiOperation({ 
+    summary: '🗑️ Eliminar proveedor 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Elimina permanentemente un proveedor del sistema.`
+  })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 204, description: 'Proveedor eliminado exitosamente' })
   @ApiResponse({ status: 404, description: 'Proveedor no encontrado' })

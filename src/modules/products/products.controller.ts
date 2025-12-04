@@ -11,8 +11,11 @@ export class ProductsController {
   @Get()
   @Public()
   @ApiOperation({ 
-    summary: '🥘 Obtener todos los productos (menú público)', 
-    description: 'Retorna el menú completo del restaurante con todos los productos disponibles. Endpoint público, no requiere autenticación. Incluye información de precios, descripciones, alérgenos, información nutricional, etc.' 
+    summary: '🥘 Obtener todos los productos (menú público) 🔓', 
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Retorna el menú completo del restaurante con todos los productos disponibles. Incluye información de precios, descripciones, alérgenos, información nutricional, etc.` 
   })
   @ApiQuery({ 
     name: 'category', 

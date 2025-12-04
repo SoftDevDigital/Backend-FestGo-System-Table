@@ -12,8 +12,11 @@ export class AdminController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📊 Dashboard del administrador',
-    description: `Obtiene métricas y estadísticas generales del sistema en tiempo real. Solo para administradores.
+    summary: '📊 Dashboard del administrador 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Obtiene métricas y estadísticas generales del sistema en tiempo real.
     
     **Incluye:**
     - Ventas del día/semana/mes

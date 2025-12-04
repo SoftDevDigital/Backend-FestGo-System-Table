@@ -11,7 +11,13 @@ export class StockMovementsController {
   @Get()
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener todos los movimientos de stock' })
+  @ApiOperation({ 
+    summary: '📊 Obtener todos los movimientos de stock 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene todos los movimientos de stock del inventario.`
+  })
   @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
   async findAll() {
     return this.stockMovementsService.findAll();
@@ -20,7 +26,13 @@ export class StockMovementsController {
   @Get('by-item/:itemId')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener movimientos por artículo de inventario' })
+  @ApiOperation({ 
+    summary: '📦 Obtener movimientos por artículo de inventario 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene todos los movimientos de stock de un artículo específico.`
+  })
   @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos del artículo' })
   async findByInventoryItem(@Param('itemId') itemId: string) {
@@ -30,7 +42,13 @@ export class StockMovementsController {
   @Get('by-type/:type')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener movimientos por tipo' })
+  @ApiOperation({ 
+    summary: '🏷️ Obtener movimientos por tipo 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene movimientos de stock filtrados por tipo (sale, purchase, adjustment, etc.).`
+  })
   @ApiParam({ name: 'type', description: 'Tipo de movimiento' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos del tipo especificado' })
   async findByType(@Param('type') type: string) {
@@ -40,7 +58,13 @@ export class StockMovementsController {
   @Get('by-date-range')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener movimientos por rango de fechas' })
+  @ApiOperation({ 
+    summary: '📅 Obtener movimientos por rango de fechas 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene movimientos de stock dentro de un rango de fechas específico.`
+  })
   @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
   @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos en el rango de fechas' })
@@ -54,7 +78,13 @@ export class StockMovementsController {
   @Get('summary')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener resumen de movimientos' })
+  @ApiOperation({ 
+    summary: '📊 Obtener resumen de movimientos 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene un resumen estadístico de los movimientos de stock en un período.`
+  })
   @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
   @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
   @ApiResponse({ status: 200, description: 'Resumen de movimientos' })
@@ -68,7 +98,13 @@ export class StockMovementsController {
   @Get('history/:itemId')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener historial de movimientos de un artículo' })
+  @ApiOperation({ 
+    summary: '📜 Obtener historial de movimientos de un artículo 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene el historial completo de movimientos de un artículo específico.`
+  })
   @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
   @ApiQuery({ name: 'limit', required: false, description: 'Número máximo de movimientos a retornar' })
   @ApiResponse({ status: 200, description: 'Historial de movimientos del artículo' })
@@ -83,7 +119,13 @@ export class StockMovementsController {
   @Get('top-moving-items')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener artículos con más movimiento' })
+  @ApiOperation({ 
+    summary: '🔥 Obtener artículos con más movimiento 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene los artículos con mayor cantidad de movimientos en un período.`
+  })
   @ApiQuery({ name: 'days', required: false, description: 'Número de días a considerar' })
   @ApiQuery({ name: 'limit', required: false, description: 'Número de artículos a retornar' })
   @ApiResponse({ status: 200, description: 'Artículos con más movimiento' })

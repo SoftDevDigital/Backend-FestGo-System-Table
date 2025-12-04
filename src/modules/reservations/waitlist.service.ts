@@ -15,16 +15,51 @@ export class WaitlistService {
 
   async addToWaitlist(createWaitlistDto: CreateWaitlistEntryDto): Promise<WaitlistEntry> {
     try {
-    // Verificar si ya existe una entrada para este cliente en esta fecha
-    const existingEntries = await this.dynamoService.scan(
-      this.waitlistTableName,
-      'customerId = :customerId AND requestedDate = :date',
-      undefined,
-      {
-        ':customerId': createWaitlistDto.customerId,
-        ':date': createWaitlistDto.requestedDate
+    // Validar que se proporcione al menos customerId o customerDetails
+    if (!createWaitlistDto.customerId && !createWaitlistDto.customerDetails) {
+      throw new BadRequestException('Debes proporcionar customerId o customerDetails (firstName, lastName, phone)');
+    }
+
+    // Validar customerDetails si se proporciona
+    if (createWaitlistDto.customerDetails) {
+      if (!createWaitlistDto.customerDetails.firstName || !createWaitlistDto.customerDetails.lastName || !createWaitlistDto.customerDetails.phone) {
+        throw new BadRequestException('customerDetails debe incluir firstName, lastName y phone');
       }
-    );
+    }
+
+    // Verificar si ya existe una entrada para este cliente en esta fecha
+    // Si hay customerId, buscar por customerId
+    // Si no hay customerId pero hay customerDetails, buscar por teléfono
+    let existingEntries: any = { items: [] };
+    
+    if (createWaitlistDto.customerId) {
+      // Buscar por customerId
+      existingEntries = await this.dynamoService.scan(
+        this.waitlistTableName,
+        'customerId = :customerId AND requestedDate = :date',
+        undefined,
+        {
+          ':customerId': createWaitlistDto.customerId,
+          ':date': createWaitlistDto.requestedDate
+        }
+      );
+    } else if (createWaitlistDto.customerDetails?.phone) {
+      // Buscar por teléfono en customerDetails
+      const allEntries = await this.dynamoService.scan(
+        this.waitlistTableName,
+        'requestedDate = :date',
+        undefined,
+        {
+          ':date': createWaitlistDto.requestedDate
+        }
+      );
+      
+      // Filtrar en memoria por teléfono
+      existingEntries.items = (allEntries.items || []).filter((entry: any) => 
+        entry.customerDetails?.phone === createWaitlistDto.customerDetails?.phone &&
+        entry.status === 'waiting'
+      );
+    }
 
     if (existingEntries.items && existingEntries.items.length > 0) {
       throw new BadRequestException('El cliente ya está en la lista de espera para esta fecha');
@@ -32,10 +67,26 @@ export class WaitlistService {
 
     const waitlistId = uuidv4();
 
+    // Asegurar que customerDetails esté presente si no hay customerId
+    // Convertir customerDetails a objeto plano para DynamoDB
+    let customerDetails: any = undefined;
+    if (createWaitlistDto.customerDetails) {
+      customerDetails = {
+        firstName: createWaitlistDto.customerDetails.firstName,
+        lastName: createWaitlistDto.customerDetails.lastName,
+        phone: createWaitlistDto.customerDetails.phone,
+        ...(createWaitlistDto.customerDetails.email && { email: createWaitlistDto.customerDetails.email }),
+      };
+    }
+    
+    if (!createWaitlistDto.customerId && !customerDetails) {
+      throw new BadRequestException('Debes proporcionar customerDetails (firstName, lastName, phone) cuando no hay customerId');
+    }
+
     const waitlistEntry: WaitlistEntry = {
       waitlistId,
       customerId: createWaitlistDto.customerId,
-      customerDetails: createWaitlistDto.customerDetails,
+      customerDetails: customerDetails,
       partySize: createWaitlistDto.partySize,
       requestedDate: createWaitlistDto.requestedDate,
       requestedTime: createWaitlistDto.requestedTime,
@@ -61,7 +112,9 @@ export class WaitlistService {
         throw error;
       }
       this.logger.error(`Error agregando entrada a waitlist: ${error.message}`, error.stack);
-      throw new Error(`Error al agregar entrada a la lista de espera: ${error.message || 'Error desconocido'}`);
+      throw new BadRequestException(
+        `No se pudo agregar a la lista de espera. Verifica que todos los datos sean correctos: ${error.message || 'Error desconocido'}`
+      );
     }
   }
 

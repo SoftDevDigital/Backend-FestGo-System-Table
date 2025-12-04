@@ -12,8 +12,11 @@ export class OrdersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📝 Obtener todos los pedidos', 
-    description: 'Retorna una lista de todos los pedidos del restaurante. Requiere autenticación como administrador o empleado. Incluye información de estado, mesa, productos, total, etc.' 
+    summary: '📝 Obtener todos los pedidos 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Retorna una lista de todos los pedidos del restaurante. Incluye información de estado, mesa, productos, total, etc.` 
   })
   @ApiQuery({ 
     name: 'status', 

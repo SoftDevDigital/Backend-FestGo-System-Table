@@ -22,14 +22,28 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
+    // Si es público, permitir acceso sin validar token
     if (isPublic) {
       return true;
     }
 
+    // Si no es público, validar token normalmente
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest(err: any, user: any, info: any, context?: ExecutionContext) {
+    // Si el endpoint es público, nunca lanzar excepción aunque el token sea inválido
+    if (context) {
+      const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (isPublic) {
+        // Permitir acceso siempre, aunque el token sea inválido
+        return user || null;
+      }
+    }
+    // Si no es público, aplicar lógica normal
     if (err || !user) {
       throw err || new UnauthorizedException('Token inválido o expirado');
     }

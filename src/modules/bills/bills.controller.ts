@@ -12,8 +12,11 @@ export class BillsController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🧾 Obtener todas las facturas', 
-    description: 'Retorna una lista de todas las facturas generadas. Requiere autenticación como administrador o empleado. Incluye información de pagos, métodos de pago, totales, etc.' 
+    summary: '🧾 Obtener todas las facturas 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Retorna una lista de todas las facturas generadas. Incluye información de pagos, métodos de pago, totales, etc.` 
   })
   @ApiQuery({ 
     name: 'date', 

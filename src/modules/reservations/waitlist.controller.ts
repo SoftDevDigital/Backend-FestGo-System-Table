@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException, Logger } from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -21,20 +21,80 @@ import { Public } from '../../common/decorators/public.decorator';
 @ApiTags('waitlist')
 @Controller('waitlist')
 export class WaitlistController {
+  private readonly logger = new Logger(WaitlistController.name);
+
   constructor(private readonly waitlistService: WaitlistService) {}
 
   // POST /waitlist - Agregar a lista de espera
   @Post()
   @Public()
   @ApiOperation({ 
-    summary: '⏳ Agregar a lista de espera',
-    description: 'Agrega un cliente a la lista de espera con cálculo automático de tiempo estimado'
+    summary: '⏳ Agregar a lista de espera 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Agrega un cliente a la lista de espera con cálculo automático de tiempo estimado.
+    
+    **Campos requeridos:**
+    - partySize: Número de personas (1-20)
+    - requestedDate: Fecha solicitada en formato ISO (ej: "2025-12-04T23:00:00.000Z")
+    - customerDetails O customerId: Debes proporcionar uno de los dos
+      - customerDetails: { firstName, lastName, phone } (requerido si no hay customerId)
+      - customerId: ID del cliente registrado (opcional)
+    
+    **Campos opcionales:**
+    - requestedTime: Hora solicitada (HH:mm)
+    - timeFlexibility: Flexibilidad de tiempo en minutos (0-240, default: 30)
+    - notes: Notas adicionales`
   })
-  @ApiCreatedResponse({ description: '✅ Agregado a lista de espera' })
-  @ApiBadRequestResponse({ description: '❌ Cliente ya está en lista de espera' })
+  @ApiBody({ 
+    type: CreateWaitlistEntryDto,
+    examples: {
+      withCustomerDetails: {
+        summary: 'Con datos del cliente (nuevo cliente)',
+        description: 'Ejemplo cuando el cliente no está registrado en el sistema',
+        value: {
+          partySize: 4,
+          requestedDate: '2025-12-04T23:00:00.000Z',
+          customerDetails: {
+            firstName: 'Juan',
+            lastName: 'Pérez',
+            phone: '+541198765432',
+            email: 'juan.perez@example.com'
+          },
+          requestedTime: '20:00',
+          timeFlexibility: 30,
+          notes: 'Mesa cerca de la barra'
+        }
+      },
+      withCustomerId: {
+        summary: 'Con ID de cliente (cliente registrado)',
+        description: 'Ejemplo cuando el cliente ya está registrado en el sistema',
+        value: {
+          partySize: 2,
+          requestedDate: '2025-12-04T23:00:00.000Z',
+          customerId: '123e4567-e89b-12d3-a456-426614174000',
+          requestedTime: '19:30',
+          notes: 'Aniversario'
+        }
+      }
+    }
+  })
+  @ApiCreatedResponse({ description: '✅ Agregado a lista de espera exitosamente' })
+  @ApiBadRequestResponse({ description: '❌ Error de validación: datos faltantes, cliente ya en lista, o formato inválido' })
   async addToWaitlist(@Body() createWaitlistDto: CreateWaitlistEntryDto): Promise<SuccessResponse<WaitlistEntry>> {
-    const waitlistEntry = await this.waitlistService.addToWaitlist(createWaitlistDto);
-    return { success: true, message: 'Added to waitlist', data: waitlistEntry };
+    try {
+      const waitlistEntry = await this.waitlistService.addToWaitlist(createWaitlistDto);
+      return { success: true, message: 'Added to waitlist', data: waitlistEntry };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error agregando a waitlist: ${error.message}`, error.stack);
+      throw new BadRequestException(
+        `No se pudo agregar a la lista de espera. ${error.message || 'Error desconocido'}`
+      );
+    }
   }
 
   // GET /waitlist - Obtener lista de espera
@@ -42,8 +102,11 @@ export class WaitlistController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📋 Obtener lista de espera',
-    description: `Obtiene lista de espera con filtros opcionales:
+    summary: '📋 Obtener lista de espera 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene lista de espera con filtros opcionales:
     
     **Filtros (query):**
     - date: Fecha específica (YYYY-MM-DD)
@@ -76,8 +139,11 @@ export class WaitlistController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🔄 Actualizar entrada de lista de espera',
-    description: `Actualiza usando query parameter 'action':
+    summary: '🔄 Actualizar entrada de lista de espera 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Actualiza usando query parameter 'action':
     - contact: Marcar como contactado
     - convert: Convertir a reserva (requiere reservationId)
     - cancel: Cancelar entrada`
@@ -116,8 +182,11 @@ export class WaitlistController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🗑️ Eliminar entrada',
-    description: 'Elimina una entrada de la lista de espera'
+    summary: '🗑️ Eliminar entrada 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Elimina una entrada de la lista de espera`
   })
   @ApiParam({ name: 'id', description: 'ID de la entrada' })
   @ApiOkResponse({ description: '✅ Entrada eliminada' })
@@ -131,8 +200,11 @@ export class WaitlistController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🔧 Mantenimiento de lista de espera',
-    description: 'Expira entradas antiguas automáticamente'
+    summary: '🔧 Mantenimiento de lista de espera 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Expira entradas antiguas automáticamente`
   })
   @ApiOkResponse({ description: '✅ Mantenimiento completado' })
   async expireOldEntries(): Promise<SuccessResponse<void>> {

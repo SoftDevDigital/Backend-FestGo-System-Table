@@ -1,7 +1,8 @@
-import { IsString, IsNumber, IsOptional, IsEmail, IsPhoneNumber, IsDateString, IsEnum, IsBoolean, IsArray, ValidateNested, Min, Max, Matches } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEmail, IsPhoneNumber, IsDateString, IsEnum, IsBoolean, IsArray, ValidateNested, Min, Max, Matches, Validate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ReservationStatus, ReservationSource, ReservationPriority } from '../../../common/enums';
+import { RequireAtLeastOne } from '../../../common/validators/require-at-least-one.validator';
 
 export class CustomerDetailsDto {
   @ApiProperty({ 
@@ -484,32 +485,71 @@ export class UpdateCustomerDto {
 }
 
 export class CreateWaitlistEntryDto {
+  @ApiPropertyOptional({ 
+    description: 'Datos del cliente si no está registrado. Debe incluir firstName, lastName y phone.',
+    type: CustomerDetailsDto
+  })
+  @IsOptional()
   @ValidateNested()
   @Type(() => CustomerDetailsDto)
-  customerDetails: CustomerDetailsDto;
+  customerDetails?: CustomerDetailsDto;
 
+  @ApiPropertyOptional({ 
+    description: 'ID del cliente si ya está registrado en el sistema',
+    example: '123e4567-e89b-12d3-a456-426614174000'
+  })
   @IsOptional()
   @IsString()
   customerId?: string;
 
+  @ApiProperty({ 
+    description: 'Número de personas (1-20)',
+    example: 4,
+    minimum: 1,
+    maximum: 20,
+    required: true
+  })
   @IsNumber()
   @Min(1)
   @Max(20)
+  @RequireAtLeastOne(['customerId', 'customerDetails'], {
+    message: 'Debes proporcionar customerId o customerDetails (firstName, lastName, phone)'
+  })
   partySize: number;
 
+  @ApiProperty({ 
+    description: 'Fecha solicitada en formato ISO (ej: "2025-12-04T23:00:00.000Z")',
+    example: '2025-12-04T23:00:00.000Z',
+    required: true
+  })
   @IsDateString()
   requestedDate: string;
 
+  @ApiPropertyOptional({ 
+    description: 'Hora solicitada (HH:mm)',
+    example: '20:00'
+  })
   @IsOptional()
   @IsString()
   requestedTime?: string;
 
+  @ApiPropertyOptional({ 
+    description: 'Flexibilidad de tiempo en minutos (0-240, default: 30)',
+    example: 30,
+    minimum: 0,
+    maximum: 240,
+    default: 30
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(240)
   timeFlexibility?: number;
 
+  @ApiPropertyOptional({ 
+    description: 'Notas adicionales',
+    example: 'Mesa cerca de la barra'
+  })
   @IsOptional()
   @IsString()
   notes?: string;

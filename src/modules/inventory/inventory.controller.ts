@@ -27,8 +27,11 @@ export class InventoryController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📦 Obtener todos los artículos de inventario', 
-    description: 'Retorna una lista completa de todos los artículos del inventario. Requiere autenticación como administrador o empleado. Incluye información de stock, costos, proveedores, ubicación, etc.' 
+    summary: '📦 Obtener todos los artículos de inventario 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Retorna una lista completa de todos los artículos del inventario. Incluye información de stock, costos, proveedores, ubicación, etc.` 
   })
   @ApiQuery({ 
     name: 'lowStock', 
@@ -71,8 +74,11 @@ export class InventoryController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '⚠️ Obtener artículos con stock bajo', 
-    description: 'Retorna solo los artículos que están por debajo del stock mínimo. Útil para alertas y reabastecimiento.' 
+    summary: '⚠️ Obtener artículos con stock bajo 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Retorna solo los artículos que están por debajo del stock mínimo. Útil para alertas y reabastecimiento.` 
   })
   @ApiOkResponse({ 
     description: '✅ Lista de artículos con stock bajo',
@@ -102,8 +108,11 @@ export class InventoryController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '💰 Obtener valor total del inventario', 
-    description: 'Calcula el valor total del inventario basado en el stock actual y el costo por unidad de cada artículo. Solo para administradores.' 
+    summary: '💰 Obtener valor total del inventario 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Calcula el valor total del inventario basado en el stock actual y el costo por unidad de cada artículo.` 
   })
   @ApiOkResponse({ 
     description: '✅ Valor total del inventario calculado',
@@ -129,7 +138,13 @@ export class InventoryController {
   @Get('movements')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener movimientos de stock' })
+  @ApiOperation({ 
+    summary: '📊 Obtener movimientos de stock 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene todos los movimientos de stock del inventario.`
+  })
   @ApiQuery({ name: 'itemId', required: false, description: 'ID del artículo específico' })
   @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
   async getStockMovements(@Query('itemId') itemId?: string) {
@@ -139,7 +154,13 @@ export class InventoryController {
   @Get(':id')
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Obtener artículo de inventario por ID' })
+  @ApiOperation({ 
+    summary: '🔍 Obtener artículo de inventario por ID 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene los detalles de un artículo específico del inventario.`
+  })
   @ApiParam({ name: 'id', description: 'ID del artículo' })
   @ApiResponse({ status: 200, description: 'Artículo de inventario encontrado' })
   @ApiResponse({ status: 404, description: 'Artículo no encontrado' })
@@ -151,8 +172,11 @@ export class InventoryController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '➕ Crear nuevo artículo de inventario', 
-    description: 'Crea un nuevo artículo en el inventario. Solo administradores pueden crear artículos. Se registra automáticamente un movimiento inicial de stock.' 
+    summary: '➕ Crear nuevo artículo de inventario 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Crea un nuevo artículo en el inventario. Se registra automáticamente un movimiento inicial de stock.` 
   })
   @ApiBody({ type: CreateInventoryItemDto })
   @ApiCreatedResponse({ 
@@ -184,8 +208,11 @@ export class InventoryController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '✏️ Actualizar artículo de inventario', 
-    description: 'Actualiza los datos de un artículo existente. Solo administradores pueden actualizar artículos.' 
+    summary: '✏️ Actualizar artículo de inventario 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Actualiza los datos de un artículo existente.` 
   })
   @ApiParam({ name: 'id', description: 'ID del artículo', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiBody({ type: UpdateInventoryItemDto })
@@ -216,8 +243,11 @@ export class InventoryController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🔧 Ajustar stock de un artículo', 
-    description: 'Ajusta manualmente el stock de un artículo (inventario físico, correcciones, etc.). Solo administradores. Se registra un movimiento de tipo "adjustment".' 
+    summary: '🔧 Ajustar stock de un artículo 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Ajusta manualmente el stock de un artículo (inventario físico, correcciones, etc.). Se registra un movimiento de tipo "adjustment".` 
   })
   @ApiParam({ name: 'id', description: 'ID del artículo', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiBody({
@@ -264,8 +294,11 @@ export class InventoryController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📉 Consumir stock de un artículo', 
-    description: 'Registra el consumo de stock (usado en preparación de platos, ventas, etc.). Disponible para administradores y empleados. Se registra un movimiento de tipo "sale".' 
+    summary: '📉 Consumir stock de un artículo 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Registra el consumo de stock (usado en preparación de platos, ventas, etc.). Se registra un movimiento de tipo "sale".` 
   })
   @ApiParam({ name: 'id', description: 'ID del artículo', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiBody({
@@ -321,8 +354,11 @@ export class InventoryController {
   @ApiBearerAuth('JWT-auth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ 
-    summary: '🗑️ Eliminar artículo de inventario', 
-    description: 'Elimina permanentemente un artículo del inventario. Solo administradores. Esta acción no se puede deshacer.' 
+    summary: '🗑️ Eliminar artículo de inventario 🔐', 
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Elimina permanentemente un artículo del inventario. Esta acción no se puede deshacer.` 
   })
   @ApiParam({ name: 'id', description: 'ID del artículo', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiNoContentResponse({ description: '✅ Artículo eliminado exitosamente' })

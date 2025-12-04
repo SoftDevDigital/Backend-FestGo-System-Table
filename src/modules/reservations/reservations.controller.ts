@@ -36,8 +36,11 @@ export class ReservationsController {
   @Post()
   @Public()
   @ApiOperation({ 
-    summary: '📅 Crear nueva reserva',
-    description: `Crea una nueva reserva en el sistema. El sistema automáticamente:
+    summary: '📅 Crear nueva reserva 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Crea una nueva reserva en el sistema. El sistema automáticamente:
     
     **Funcionalidades automáticas:**
     - Verifica disponibilidad de mesas para la fecha y hora solicitada
@@ -120,8 +123,13 @@ export class ReservationsController {
   @Public() // Por defecto público, pero algunas vistas requieren auth (se valida manualmente en el método)
   @ApiBearerAuth('JWT-auth') // Opcional para vistas que requieren auth
   @ApiOperation({ 
-    summary: '📋 Endpoint unificado de reservas',
-    description: `Endpoint principal que maneja múltiples vistas usando query parameter 'view':
+    summary: '📋 Endpoint unificado de reservas 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida (algunas vistas requieren auth)**
+    **👥 Roles permitidos:** 
+    - Público: view=tables, view=check, view=my-reservations, view=calendar
+    - 🔐 Admin/Empleado: view=stats, view=search, view=list
+    
+    Endpoint principal que maneja múltiples vistas usando query parameter 'view':
     
     **view=tables** (público): Mesas disponibles con horarios
     - **Endpoint público** - No requiere autenticación para ver mesas disponibles
@@ -457,8 +465,11 @@ export class ReservationsController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🔍 Obtener reserva por ID',
-    description: 'Obtiene detalles completos de una reserva específica'
+    summary: '🔍 Obtener reserva por ID 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene detalles completos de una reserva específica`
   })
   @ApiParam({ name: 'id', description: 'ID de la reserva', example: 'res_789abc123' })
   @ApiOkResponse({ description: '✅ Reserva encontrada' })
@@ -486,8 +497,11 @@ export class ReservationsController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '✏️ Actualizar reserva o cambiar estado',
-    description: `Actualiza una reserva. Si se proporciona 'action' en query, cambia el estado:
+    summary: '✏️ Actualizar reserva o cambiar estado 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Actualiza una reserva. Si se proporciona 'action' en query, cambia el estado:
     - action=confirm: Confirmar reserva
     - action=seat: Sentar clientes (requiere tableId)
     - action=complete: Completar (opcional: actualSpend)
@@ -574,8 +588,11 @@ export class ReservationsController {
   @Patch()
   @Public()
   @ApiOperation({ 
-    summary: '🔄 Acciones de cliente por código de confirmación',
-    description: `Permite a los clientes realizar acciones sobre su reserva usando el código de confirmación (6 caracteres).
+    summary: '🔄 Acciones de cliente por código de confirmación 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Permite a los clientes realizar acciones sobre sus reservas usando el código de confirmación (6 caracteres).
     
     **Acciones disponibles:**
     
@@ -848,8 +865,11 @@ export class ReservationsController {
   @Get('calendar/:date/:time/tables')
   @Public()
   @ApiOperation({
-    summary: '🍽️ Mesas disponibles para fecha y hora',
-    description: `Obtiene todas las mesas disponibles para una fecha y hora específica.
+    summary: '🍽️ Mesas disponibles para fecha y hora 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Obtiene todas las mesas disponibles para una fecha y hora específica.
     
     **Parámetros:**
     - date: Fecha en formato YYYY-MM-DD
@@ -918,8 +938,13 @@ export class ReservationsController {
   @Delete(':id')
   @Public() // Público para permitir que clientes eliminen con código, pero validamos en el método
   @ApiOperation({ 
-    summary: '🗑️ Eliminar/Cancelar reserva',
-    description: `Elimina/cancela una reserva:
+    summary: '🗑️ Eliminar/Cancelar reserva 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida (con código de confirmación)**
+    **👥 Roles permitidos:** 
+    - Cualquiera (público) - Si usa código de confirmación (6 caracteres)
+    - 🔐 Admin - Si usa reservationId (UUID)
+    
+    Elimina/cancela una reserva:
     - Si 'id' es un código de confirmación (6 caracteres): Cliente puede cancelar su propia reserva
     - Si 'id' es un reservationId (UUID): Solo admin puede eliminar
     

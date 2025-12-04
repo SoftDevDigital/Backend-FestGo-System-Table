@@ -32,8 +32,11 @@ export class CustomersController {
   @Post()
   @Public()
   @ApiOperation({ 
-    summary: '👥 Crear nuevo cliente',
-    description: `Registra un nuevo cliente en el sistema. Útil para crear perfiles de clientes antes de que hagan reservas.
+    summary: '👥 Crear nuevo cliente 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público)
+    
+    Registra un nuevo cliente en el sistema. Útil para crear perfiles de clientes antes de que hagan reservas.
     
     **Funcionalidades:**
     - Crea un perfil de cliente con información personal
@@ -94,8 +97,11 @@ export class CustomersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📋 Listar o buscar clientes',
-    description: `Endpoint unificado:
+    summary: '📋 Listar o buscar clientes 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Endpoint unificado:
     
     **Búsqueda (query: q):**
     - Busca por nombre, email, teléfono, empresa
@@ -171,8 +177,11 @@ export class CustomersController {
   @Get('profile')
   @Public()
   @ApiOperation({ 
-    summary: '👤 Perfil completo del cliente',
-    description: `Obtiene el perfil completo del cliente con toda su información histórica y estadísticas.
+    summary: '👤 Perfil completo del cliente 🔓',
+    description: `**🔓 PÚBLICO - Sin autenticación requerida**
+    **👥 Roles permitidos:** Cualquiera (público - requiere customerId o phone)
+    
+    Obtiene el perfil completo del cliente con toda su información histórica y estadísticas.
     
     **Información incluida:**
     
@@ -266,8 +275,11 @@ export class CustomersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🔍 Obtener cliente por ID',
-    description: 'Obtiene información básica del cliente (para admin/empleado)'
+    summary: '🔍 Obtener cliente por ID 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene información básica del cliente (para admin/empleado)`
   })
   @ApiParam({ name: 'id', description: 'ID del cliente' })
   @ApiOkResponse({ description: '✅ Cliente encontrado' })
@@ -294,8 +306,11 @@ export class CustomersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📅 Historial de reservas del cliente',
-    description: 'Obtiene todas las reservas pasadas y futuras del cliente'
+    summary: '📅 Historial de reservas del cliente 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene todas las reservas pasadas y futuras del cliente`
   })
   @ApiParam({ name: 'id', description: 'ID del cliente' })
   @ApiOkResponse({ description: '✅ Historial obtenido' })
@@ -321,8 +336,11 @@ export class CustomersController {
   @Get('phone/:phone')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📱 Buscar cliente por teléfono',
-    description: 'Búsqueda rápida usando número de teléfono'
+    summary: '📱 Buscar cliente por teléfono 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Búsqueda rápida usando número de teléfono`
   })
   @ApiParam({ name: 'phone', description: 'Número de teléfono', example: '+34612345678' })
   @ApiOkResponse({ description: '✅ Cliente encontrado' })
@@ -349,8 +367,11 @@ export class CustomersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '✏️ Actualizar cliente',
-    description: 'Actualiza información del cliente'
+    summary: '✏️ Actualizar cliente 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Actualiza información del cliente`
   })
   @ApiParam({ name: 'id', description: 'ID del cliente' })
   @ApiOkResponse({ description: '✅ Cliente actualizado' })
@@ -387,8 +408,11 @@ export class CustomersController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '⭐ Gestionar cliente',
-    description: `Gestión de cliente usando query parameter 'action':
+    summary: '⭐ Gestionar cliente 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Gestión de cliente usando query parameter 'action':
     - promote-vip: Promover a VIP
     - remove-vip: Remover status VIP
     - add-note: Agregar nota (requiere body)
@@ -463,8 +487,11 @@ export class CustomersController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🗑️ Eliminar cliente',
-    description: 'Elimina permanentemente un cliente (usar con precaución)'
+    summary: '🗑️ Eliminar cliente 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Elimina permanentemente un cliente (usar con precaución)`
   })
   @ApiParam({ name: 'id', description: 'ID del cliente' })
   @ApiOkResponse({ description: '✅ Cliente eliminado' })

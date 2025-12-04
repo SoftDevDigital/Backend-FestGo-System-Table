@@ -12,8 +12,11 @@ export class ReportsController {
   @AdminOnly()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '📈 Reporte de ventas',
-    description: `Obtiene reporte detallado de ventas con análisis completo. Solo para administradores.
+    summary: '📈 Reporte de ventas 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin
+    
+    Obtiene reporte detallado de ventas con análisis completo.
     
     **Incluye:**
     - Ventas por período (día, semana, mes)
