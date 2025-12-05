@@ -1,5 +1,6 @@
 import { BillStatus, PaymentMethod } from '../enums';
 import { BaseEntity } from './user.entity';
+import { OrderItem } from './order.entity';
 
 export interface PaymentDetail {
   id: string;
@@ -43,6 +44,10 @@ export interface Bill extends BaseEntity {
   customerEmail?: string;
   notes?: string;
   dueDate?: string;
+  // Guardar items completos de la orden para registro permanente
+  items?: OrderItem[];
+  orderNumber?: string; // Número de orden original
+  waiterId?: string; // ID del mesero que atendió
 }
 
 export interface Receipt {

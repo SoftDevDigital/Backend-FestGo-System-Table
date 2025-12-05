@@ -59,7 +59,10 @@ export class CreateOrderDto {
   @IsUUID('4')
   tableId?: string;
 
-  @ApiPropertyOptional({ description: 'ID del cliente' })
+  @ApiPropertyOptional({ 
+    description: 'ID del cliente (OPCIONAL - para clientes walk-in sin registro, omitir este campo)',
+    example: '123e4567-e89b-12d3-a456-426614174000'
+  })
   @IsOptional()
   @IsUUID('4')
   customerId?: string;
@@ -105,6 +108,16 @@ export class CreateOrderDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   tipAmount?: number;
+}
+
+export class AddItemsToOrderDto {
+  @ApiProperty({ description: 'Ítems a agregar a la orden', type: [CreateOrderItemDto] })
+  @IsNotEmpty({ message: 'Debe incluir al menos un ítem' })
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Debe incluir al menos un producto' })
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderItemDto)
+  items: CreateOrderItemDto[];
 }
 
 export class UpdateOrderDto extends PartialType(CreateOrderDto) {

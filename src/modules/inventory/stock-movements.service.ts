@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
 
 @Injectable()
@@ -13,26 +13,35 @@ export class StockMovementsService {
   async findAll() {
     try {
       const result = await this.dynamoDBService.scan(this.tableName);
-      return result.items;
+      return result.items || [];
     } catch (error) {
-      this.logger.error(`Error obteniendo movimientos de stock: ${error.message}`, error.stack);
-      throw new Error(`Error al obtener movimientos de stock: ${error.message || 'Error desconocido'}`);
+      // Solo loguear errores inesperados con stack trace
+      this.logger.error(
+        `Error inesperado obteniendo movimientos de stock: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new Error('Error al obtener movimientos de stock. Por favor, intenta nuevamente.');
     }
   }
 
   async findByInventoryItem(inventoryItemId: string) {
     try {
-      const result = await this.dynamoDBService.query(
+      // Usar scan con FilterExpression ya que inventoryItemId no es la clave primaria
+      const result = await this.dynamoDBService.scan(
         this.tableName,
         'inventoryItemId = :inventoryItemId',
-        { '#inventoryItemId': 'inventoryItemId' },
+        undefined,
         { ':inventoryItemId': inventoryItemId },
       );
       
-      return result.items;
+      return result.items || [];
     } catch (error) {
-      this.logger.error(`Error obteniendo movimientos para artículo ${inventoryItemId}: ${error.message}`, error.stack);
-      throw new Error(`Error al obtener movimientos del artículo: ${error.message || 'Error desconocido'}`);
+      // Solo loguear errores inesperados con stack trace
+      this.logger.error(
+        `Error inesperado obteniendo movimientos para artículo ${inventoryItemId}: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al obtener movimientos del artículo. Verifica que el ID sea válido.');
     }
   }
 
@@ -92,14 +101,31 @@ export class StockMovementsService {
   }
 
   async getInventoryItemHistory(inventoryItemId: string, limit = 50) {
-    const movements = await this.findByInventoryItem(inventoryItemId);
-    
-    // Ordenar por fecha descendente
-    const sortedMovements = [...movements].sort((a, b) => 
-      new Date(b.movementDate).getTime() - new Date(a.movementDate).getTime()
-    );
-    
-    return sortedMovements.slice(0, limit);
+    try {
+      const movements = await this.findByInventoryItem(inventoryItemId);
+      
+      // Validar que limit sea un número válido
+      const validLimit = Math.max(1, Math.min(100, limit));
+      
+      // Ordenar por fecha descendente
+      const sortedMovements = [...movements].sort((a, b) => {
+        const dateA = a.movementDate ? new Date(a.movementDate).getTime() : 0;
+        const dateB = b.movementDate ? new Date(b.movementDate).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      return sortedMovements.slice(0, validLimit);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Solo loguear errores inesperados
+      this.logger.error(
+        `Error inesperado obteniendo historial para artículo ${inventoryItemId}: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al obtener historial del artículo. Verifica que el ID sea válido.');
+    }
   }
 
   async getTopMovingItems(days = 30, limit = 10) {

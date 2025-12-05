@@ -1,12 +1,61 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Query, Param, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth, ApiCreatedResponse, ApiBody, ApiBadRequestResponse, ApiNotFoundResponse, ApiParam } from '@nestjs/swagger';
 import { BillsService } from './bills.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
+import { CreateBillDto } from './dto/bill.dto';
+import { SuccessResponse } from '../../common/dto/response.dto';
+import { Bill } from '../../common/entities/bill.entity';
 
 @ApiTags('bills')
 @Controller('bills')
 export class BillsController {
   constructor(private readonly billsService: BillsService) {}
+
+  @Post()
+  @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '🧾 Cerrar cuenta y crear factura 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Crea una factura a partir de una orden y procesa el pago. Funciona tanto para clientes registrados como para clientes walk-in (sin registro).
+    
+    **Flujo:**
+    1. Se obtiene la orden
+    2. Se calculan los totales (subtotal, impuestos, descuentos, propina)
+    3. Se valida el monto pagado
+    4. Se crea la factura (con todos los items guardados)
+    5. Se registra movimiento financiero de VENTA
+    6. Se ELIMINA la orden de la tabla Orders (ya cumplió su función)
+    7. La mesa se libera automáticamente
+    
+    **Nota:** Si la orden no tiene customerId (cliente walk-in), el ticket mostrará "Consumidor Final".`
+  })
+  @ApiBody({ type: CreateBillDto })
+  @ApiCreatedResponse({ 
+    description: '✅ Factura creada exitosamente'
+  })
+  @ApiBadRequestResponse({ description: '❌ Error de validación, orden cancelada, o monto insuficiente' })
+  @ApiNotFoundResponse({ description: '❌ Orden no encontrada' })
+  async create(@Body() createBillDto: CreateBillDto): Promise<SuccessResponse<Bill>> {
+    try {
+      const bill = await this.billsService.createBillFromOrder(
+        createBillDto.orderId,
+        createBillDto.paymentMethod,
+        createBillDto.paidAmount,
+        createBillDto.cashierId,
+        createBillDto.discountAmount,
+        createBillDto.tipAmount,
+      );
+      return { success: true, message: 'Factura creada exitosamente', data: bill };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al crear la factura. Verifica que todos los datos sean correctos.');
+    }
+  }
 
   @Get()
   @AdminOrEmployee()
@@ -29,58 +78,122 @@ export class BillsController {
     required: false, 
     description: 'Filtrar por método de pago',
     example: 'cash',
-    enum: ['cash', 'card', 'transfer', 'other']
+    enum: ['cash', 'credit_card', 'debit_card', 'transfer', 'digital_wallet']
   })
   @ApiQuery({ 
     name: 'status', 
     required: false, 
     description: 'Filtrar por estado',
     example: 'paid',
-    enum: ['pending', 'paid', 'cancelled']
-  })
-  @ApiQuery({ 
-    name: 'page', 
-    required: false, 
-    description: 'Número de página',
-    example: 1,
-    type: Number
-  })
-  @ApiQuery({ 
-    name: 'limit', 
-    required: false, 
-    description: 'Elementos por página',
-    example: 20,
-    type: Number
+    enum: ['pending', 'paid', 'partially_paid', 'cancelled', 'refunded']
   })
   @ApiOkResponse({ 
-    description: '✅ Lista de facturas obtenida exitosamente',
-    schema: {
-      example: {
-        success: true,
-        statusCode: 200,
-        message: 'Operación completada exitosamente',
-        data: [
-          {
-            id: '123e4567-e89b-12d3-a456-426614174000',
-            orderId: 'order-123',
-            tableNumber: 5,
-            subtotal: 50.00,
-            tax: 10.00,
-            tip: 5.00,
-            total: 65.00,
-            paymentMethod: 'card',
-            status: 'paid',
-            createdAt: '2025-11-30T10:00:00.000Z'
-          }
-        ]
-      }
-    }
+    description: '✅ Lista de facturas obtenida exitosamente'
   })
-  findAll(
+  async findAll(
     @Query('date') date?: string,
     @Query('paymentMethod') paymentMethod?: string,
     @Query('status') status?: string
   ) {
-    return this.billsService.findAll();
+    const bills = await this.billsService.findAll();
+    return { success: true, message: 'Facturas obtenidas exitosamente', data: bills };
+  }
+
+  @Get(':id')
+  @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '🧾 Obtener factura por ID 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene los detalles completos de una factura específica.`
+  })
+  @ApiParam({ name: 'id', description: 'ID de la factura' })
+  @ApiOkResponse({ 
+    description: '✅ Factura obtenida exitosamente'
+  })
+  @ApiNotFoundResponse({ description: '❌ Factura no encontrada' })
+  async findOne(@Param('id') id: string): Promise<SuccessResponse<Bill>> {
+    const bill = await this.billsService.findOne(id);
+    return { success: true, message: 'Factura obtenida exitosamente', data: bill };
+  }
+
+  @Get(':id/ticket')
+  @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '🎫 Obtener ticket de factura 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    Obtiene el ticket completo de una factura con toda la información necesaria para imprimir.
+    Incluye: productos, cantidades, precios, totales, método de pago, etc.`
+  })
+  @ApiParam({ name: 'id', description: 'ID de la factura' })
+  @ApiOkResponse({ 
+    description: '✅ Ticket obtenido exitosamente'
+  })
+  @ApiNotFoundResponse({ description: '❌ Factura no encontrada' })
+  async getTicket(@Param('id') id: string) {
+    const bill = await this.billsService.findOne(id);
+    
+    // Los items están guardados en la factura (la orden ya fue eliminada)
+    if (!bill.items || bill.items.length === 0) {
+      throw new BadRequestException('La factura no contiene items. La orden original ya fue procesada.');
+    }
+    
+    // Obtener información adicional si existe
+    let table = null;
+    if (bill.tableId) {
+      try {
+        const tablesTableName = (this.billsService as any).dynamoService.getTableName('tables');
+        table = await (this.billsService as any).dynamoService.get(tablesTableName, { id: bill.tableId });
+      } catch (error) {
+        // Ignorar si no se puede obtener la mesa
+      }
+    }
+
+    // Obtener información del cliente si existe
+    let customerName = 'Consumidor Final';
+    if (bill.customerId) {
+      try {
+        const customersTableName = (this.billsService as any).dynamoService.getTableName('customers');
+        const customer = await (this.billsService as any).dynamoService.get(customersTableName, { id: bill.customerId });
+        if (customer) {
+          customerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Consumidor Final';
+        }
+      } catch (error) {
+        // Si no se puede obtener el cliente, usar "Consumidor Final"
+      }
+    }
+
+    // Estructura del ticket (toda la info viene de la factura)
+    const ticket = {
+      billNumber: bill.billNumber,
+      orderNumber: bill.orderNumber || 'N/A',
+      fecha: bill.createdAt,
+      mesa: table ? table.number : null,
+      cliente: customerName,
+      productos: bill.items.map(item => ({
+        nombre: item.productName,
+        cantidad: item.quantity,
+        precioUnitario: item.unitPrice,
+        total: item.totalPrice,
+        instrucciones: item.specialInstructions || '',
+      })),
+      subtotal: bill.subtotal,
+      impuestos: bill.taxAmount,
+      descuento: bill.discountAmount || 0,
+      propina: bill.tipAmount || 0,
+      total: bill.totalAmount,
+      metodoPago: bill.paymentDetails[0]?.method || 'cash',
+      montoPagado: bill.paidAmount,
+      cambio: bill.changeAmount || 0,
+      cajero: bill.cashierId || null,
+      notas: bill.notes || '',
+    };
+
+    return { success: true, message: 'Ticket obtenido exitosamente', data: ticket };
   }
 }

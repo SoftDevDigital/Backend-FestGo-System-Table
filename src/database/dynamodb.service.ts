@@ -12,6 +12,7 @@ import {
   BatchGetCommand,
   BatchWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { marshallOptions, unmarshallOptions } from '@aws-sdk/util-dynamodb';
 
 @Injectable()
 export class DynamoDBService {
@@ -35,7 +36,21 @@ export class DynamoDBService {
       }),
     });
 
-    this.docClient = DynamoDBDocumentClient.from(this.client);
+    // Configurar DynamoDBDocumentClient para remover valores undefined automáticamente
+    const marshallOptions: marshallOptions = {
+      removeUndefinedValues: true,
+      convertEmptyValues: false,
+    };
+    
+    const unmarshallOptions: unmarshallOptions = {
+      wrapNumbers: false,
+    };
+
+    this.docClient = DynamoDBDocumentClient.from(this.client, {
+      marshallOptions,
+      unmarshallOptions,
+    });
+    
     this.logger.log(
       `✅ DynamoDBClient configurado (region=${region}, endpoint=${endpoint ?? 'default'})`,
     );

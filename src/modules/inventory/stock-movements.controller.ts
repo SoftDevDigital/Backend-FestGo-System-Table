@@ -1,5 +1,5 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Query, Param, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBearerAuth, ApiUnauthorizedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
 import { StockMovementsService } from './stock-movements.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
 
@@ -18,7 +18,8 @@ export class StockMovementsController {
     
     Obtiene todos los movimientos de stock del inventario.`
   })
-  @ApiResponse({ status: 200, description: 'Lista de movimientos de stock' })
+  @ApiResponse({ status: 200, description: '✅ Lista de movimientos de stock obtenida exitosamente' })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async findAll() {
     return this.stockMovementsService.findAll();
   }
@@ -31,12 +32,45 @@ export class StockMovementsController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Obtiene todos los movimientos de stock de un artículo específico.`
+    Obtiene todos los movimientos de stock de un artículo específico.
+    
+    **Parámetros:**
+    - itemId: Debe ser un UUID válido (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)`
   })
-  @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
-  @ApiResponse({ status: 200, description: 'Lista de movimientos del artículo' })
+  @ApiParam({ 
+    name: 'itemId', 
+    description: 'ID del artículo de inventario (UUID válido)',
+    example: 'fcee5510-4fb4-4d0c-aa25-13e5cf2b140b',
+    type: String
+  })
+  @ApiResponse({ status: 200, description: '✅ Lista de movimientos del artículo obtenida exitosamente' })
+  @ApiBadRequestResponse({ 
+    description: '❌ ID de artículo inválido - Debe ser un UUID válido',
+    schema: {
+      example: {
+        success: false,
+        statusCode: 400,
+        message: 'El ID del artículo debe ser un UUID válido',
+        errorCode: 'VALIDATION_ERROR'
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async findByInventoryItem(@Param('itemId') itemId: string) {
-    return this.stockMovementsService.findByInventoryItem(itemId);
+    // Validar que itemId sea un UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(itemId)) {
+      throw new BadRequestException('El ID del artículo debe ser un UUID válido');
+    }
+    
+    try {
+      return await this.stockMovementsService.findByInventoryItem(itemId);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener movimientos del artículo. Verifica que el ID sea válido.');
+    }
   }
 
   @Get('by-type/:type')
@@ -103,17 +137,79 @@ export class StockMovementsController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Obtiene el historial completo de movimientos de un artículo específico.`
+    Obtiene el historial completo de movimientos de un artículo específico, ordenado por fecha descendente.
+    
+    **Parámetros:**
+    - itemId: Debe ser un UUID válido (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    - limit: Número máximo de movimientos a retornar (1-100, default: 50)`
   })
-  @ApiParam({ name: 'itemId', description: 'ID del artículo de inventario' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Número máximo de movimientos a retornar' })
-  @ApiResponse({ status: 200, description: 'Historial de movimientos del artículo' })
+  @ApiParam({ 
+    name: 'itemId', 
+    description: 'ID del artículo de inventario (UUID válido)',
+    example: 'fcee5510-4fb4-4d0c-aa25-13e5cf2b140b',
+    type: String
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    description: 'Número máximo de movimientos a retornar (1-100, default: 50)', 
+    type: Number, 
+    example: 50
+  })
+  @ApiResponse({ status: 200, description: '✅ Historial de movimientos del artículo obtenido exitosamente' })
+  @ApiBadRequestResponse({ 
+    description: '❌ Error de validación - ID inválido o limit fuera de rango',
+    schema: {
+      examples: {
+        invalidId: {
+          summary: 'ID inválido',
+          value: {
+            success: false,
+            statusCode: 400,
+            message: 'El ID del artículo debe ser un UUID válido',
+            errorCode: 'VALIDATION_ERROR'
+          }
+        },
+        invalidLimit: {
+          summary: 'Limit inválido',
+          value: {
+            success: false,
+            statusCode: 400,
+            message: 'El parámetro limit debe ser un número entre 1 y 100',
+            errorCode: 'VALIDATION_ERROR'
+          }
+        }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async getInventoryItemHistory(
     @Param('itemId') itemId: string,
     @Query('limit') limit?: string
   ) {
-    const limitNum = limit ? Number.parseInt(limit, 10) : 50;
-    return this.stockMovementsService.getInventoryItemHistory(itemId, limitNum);
+    // Validar que itemId sea un UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(itemId)) {
+      throw new BadRequestException('El ID del artículo debe ser un UUID válido');
+    }
+    
+    // Validar y parsear limit
+    let limitNum = 50; // Default
+    if (limit) {
+      limitNum = Number.parseInt(limit, 10);
+      if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+        throw new BadRequestException('El parámetro limit debe ser un número entre 1 y 100');
+      }
+    }
+    
+    try {
+      return await this.stockMovementsService.getInventoryItemHistory(itemId, limitNum);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener historial del artículo. Verifica que el ID sea válido.');
+    }
   }
 
   @Get('top-moving-items')
