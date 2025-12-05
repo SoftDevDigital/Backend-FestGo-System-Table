@@ -26,6 +26,12 @@ export class StockMovementsService {
 
   async findByInventoryItem(inventoryItemId: string) {
     try {
+      // Validar UUID antes de consultar
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(inventoryItemId)) {
+        throw new BadRequestException('El ID del artículo debe ser un UUID válido');
+      }
+
       // Usar scan con FilterExpression ya que inventoryItemId no es la clave primaria
       const result = await this.dynamoDBService.scan(
         this.tableName,
@@ -36,6 +42,9 @@ export class StockMovementsService {
       
       return result.items || [];
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       // Solo loguear errores inesperados con stack trace
       this.logger.error(
         `Error inesperado obteniendo movimientos para artículo ${inventoryItemId}: ${error.message}`,
@@ -47,25 +56,57 @@ export class StockMovementsService {
 
   async findByDateRange(startDate: string, endDate: string) {
     try {
+      // Validar fechas
+      if (!startDate || !endDate) {
+        throw new BadRequestException('Las fechas de inicio y fin son requeridas');
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new BadRequestException('Las fechas deben tener un formato válido (ISO string)');
+      }
+
+      if (start > end) {
+        throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha de fin');
+      }
+
       const result = await this.dynamoDBService.scan(this.tableName);
       
-      return result.items.filter(movement => {
+      return (result.items || []).filter(movement => {
         const movementDate = movement.movementDate;
         return movementDate >= startDate && movementDate <= endDate;
       });
     } catch (error) {
-      this.logger.error(`Error obteniendo movimientos por rango de fechas: ${error.message}`, error.stack);
-      throw new Error(`Error al obtener movimientos por rango de fechas: ${error.message || 'Error desconocido'}`);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado obteniendo movimientos por rango de fechas: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al obtener movimientos por rango de fechas. Verifica que las fechas sean válidas.');
     }
   }
 
   async findByType(type: string) {
     try {
+      if (!type || type.trim() === '') {
+        throw new BadRequestException('El tipo de movimiento es requerido');
+      }
+
       const result = await this.dynamoDBService.scan(this.tableName);
-      return result.items.filter(movement => movement.type === type);
+      return (result.items || []).filter(movement => movement.type === type);
     } catch (error) {
-      this.logger.error(`Error obteniendo movimientos por tipo ${type}: ${error.message}`, error.stack);
-      throw new Error(`Error al obtener movimientos por tipo: ${error.message || 'Error desconocido'}`);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado obteniendo movimientos por tipo ${type}: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al obtener movimientos por tipo. Verifica que el tipo sea válido.');
     }
   }
 
@@ -85,23 +126,40 @@ export class StockMovementsService {
         summary.byType[movement.type] = (summary.byType[movement.type] || 0) + 1;
         
         // Sumar cantidades
-        summary.totalQuantity += movement.quantity;
+        summary.totalQuantity += (movement.quantity || 0);
         
         // Sumar valor si existe unitCost
         if (movement.unitCost) {
-          summary.totalValue += movement.quantity * movement.unitCost;
+          summary.totalValue += (movement.quantity || 0) * movement.unitCost;
         }
       }
 
       return summary;
     } catch (error) {
-      this.logger.error(`Error generando resumen de movimientos: ${error.message}`, error.stack);
-      throw new Error(`Error al generar resumen de movimientos: ${error.message || 'Error desconocido'}`);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado generando resumen de movimientos: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al generar resumen de movimientos. Verifica que las fechas sean válidas.');
     }
   }
 
   async getInventoryItemHistory(inventoryItemId: string, limit = 50) {
     try {
+      // Validar UUID antes de consultar
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(inventoryItemId)) {
+        throw new BadRequestException('El ID del artículo debe ser un UUID válido');
+      }
+
+      // Validar limit
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        throw new BadRequestException('El parámetro limit debe ser un número entre 1 y 100');
+      }
+
       const movements = await this.findByInventoryItem(inventoryItemId);
       
       // Validar que limit sea un número válido
@@ -129,39 +187,61 @@ export class StockMovementsService {
   }
 
   async getTopMovingItems(days = 30, limit = 10) {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    
-    const movements = await this.findByDateRange(
-      startDate.toISOString(),
-      new Date().toISOString()
-    );
-
-    const itemMovements = movements.reduce((acc, movement) => {
-      const itemId = movement.inventoryItemId;
-      if (!acc[itemId]) {
-        acc[itemId] = {
-          inventoryItemId: itemId,
-          totalQuantity: 0,
-          movementCount: 0,
-          lastMovement: movement.movementDate,
-        };
+    try {
+      // Validar parámetros
+      if (isNaN(days) || days < 1 || days > 365) {
+        throw new BadRequestException('El parámetro days debe ser un número entre 1 y 365');
       }
-      
-      acc[itemId].totalQuantity += movement.quantity;
-      acc[itemId].movementCount += 1;
-      
-      if (movement.movementDate > acc[itemId].lastMovement) {
-        acc[itemId].lastMovement = movement.movementDate;
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        throw new BadRequestException('El parámetro limit debe ser un número entre 1 y 100');
       }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
       
-      return acc;
-    }, {} as Record<string, any>);
+      const movements = await this.findByDateRange(
+        startDate.toISOString(),
+        new Date().toISOString()
+      );
 
-    const topItems = Object.values(itemMovements)
-      .sort((a: any, b: any) => b.totalQuantity - a.totalQuantity)
-      .slice(0, limit);
+      const itemMovements = movements.reduce((acc, movement) => {
+        const itemId = movement.inventoryItemId;
+        if (!itemId) return acc;
 
-    return topItems;
+        if (!acc[itemId]) {
+          acc[itemId] = {
+            inventoryItemId: itemId,
+            totalQuantity: 0,
+            movementCount: 0,
+            lastMovement: movement.movementDate || '',
+          };
+        }
+        
+        acc[itemId].totalQuantity += (movement.quantity || 0);
+        acc[itemId].movementCount += 1;
+        
+        if (movement.movementDate && movement.movementDate > acc[itemId].lastMovement) {
+          acc[itemId].lastMovement = movement.movementDate;
+        }
+        
+        return acc;
+      }, {} as Record<string, any>);
+
+      const topItems = Object.values(itemMovements)
+        .sort((a: any, b: any) => b.totalQuantity - a.totalQuantity)
+        .slice(0, limit);
+
+      return topItems;
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado obteniendo artículos con más movimiento: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al obtener artículos con más movimiento. Verifica que los parámetros sean válidos.');
+    }
   }
 }

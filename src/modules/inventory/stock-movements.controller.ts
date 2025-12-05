@@ -83,10 +83,19 @@ export class StockMovementsController {
     
     Obtiene movimientos de stock filtrados por tipo (sale, purchase, adjustment, etc.).`
   })
-  @ApiParam({ name: 'type', description: 'Tipo de movimiento' })
-  @ApiResponse({ status: 200, description: 'Lista de movimientos del tipo especificado' })
+  @ApiParam({ name: 'type', description: 'Tipo de movimiento', example: 'sale' })
+  @ApiResponse({ status: 200, description: '✅ Lista de movimientos del tipo especificado' })
+  @ApiBadRequestResponse({ description: '❌ Error: Tipo de movimiento requerido' })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async findByType(@Param('type') type: string) {
-    return this.stockMovementsService.findByType(type);
+    try {
+      return await this.stockMovementsService.findByType(type);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener movimientos por tipo. Verifica que el tipo sea válido.');
+    }
   }
 
   @Get('by-date-range')
@@ -99,14 +108,23 @@ export class StockMovementsController {
     
     Obtiene movimientos de stock dentro de un rango de fechas específico.`
   })
-  @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
-  @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
-  @ApiResponse({ status: 200, description: 'Lista de movimientos en el rango de fechas' })
+  @ApiQuery({ name: 'startDate', required: true, description: 'Fecha de inicio (ISO string)', example: '2025-12-01T00:00:00.000Z' })
+  @ApiQuery({ name: 'endDate', required: true, description: 'Fecha de fin (ISO string)', example: '2025-12-04T23:59:59.999Z' })
+  @ApiResponse({ status: 200, description: '✅ Lista de movimientos en el rango de fechas' })
+  @ApiBadRequestResponse({ description: '❌ Error de validación - Fechas inválidas o faltantes' })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async findByDateRange(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string
   ) {
-    return this.stockMovementsService.findByDateRange(startDate, endDate);
+    try {
+      return await this.stockMovementsService.findByDateRange(startDate, endDate);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener movimientos por rango de fechas. Verifica que las fechas sean válidas.');
+    }
   }
 
   @Get('summary')
@@ -119,14 +137,23 @@ export class StockMovementsController {
     
     Obtiene un resumen estadístico de los movimientos de stock en un período.`
   })
-  @ApiQuery({ name: 'startDate', description: 'Fecha de inicio (ISO string)' })
-  @ApiQuery({ name: 'endDate', description: 'Fecha de fin (ISO string)' })
-  @ApiResponse({ status: 200, description: 'Resumen de movimientos' })
+  @ApiQuery({ name: 'startDate', required: true, description: 'Fecha de inicio (ISO string)', example: '2025-12-01T00:00:00.000Z' })
+  @ApiQuery({ name: 'endDate', required: true, description: 'Fecha de fin (ISO string)', example: '2025-12-04T23:59:59.999Z' })
+  @ApiResponse({ status: 200, description: '✅ Resumen de movimientos' })
+  @ApiBadRequestResponse({ description: '❌ Error de validación - Fechas inválidas' })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async getMovementsSummary(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string
   ) {
-    return this.stockMovementsService.getMovementsSummary(startDate, endDate);
+    try {
+      return await this.stockMovementsService.getMovementsSummary(startDate, endDate);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener resumen de movimientos. Verifica que las fechas sean válidas.');
+    }
   }
 
   @Get('history/:itemId')
@@ -222,15 +249,24 @@ export class StockMovementsController {
     
     Obtiene los artículos con mayor cantidad de movimientos en un período.`
   })
-  @ApiQuery({ name: 'days', required: false, description: 'Número de días a considerar' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Número de artículos a retornar' })
-  @ApiResponse({ status: 200, description: 'Artículos con más movimiento' })
+  @ApiQuery({ name: 'days', required: false, description: 'Número de días a considerar (1-365, default: 30)', type: Number, example: 30 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Número de artículos a retornar (1-100, default: 10)', type: Number, example: 10 })
+  @ApiResponse({ status: 200, description: '✅ Artículos con más movimiento' })
+  @ApiBadRequestResponse({ description: '❌ Error de validación - Parámetros inválidos' })
+  @ApiUnauthorizedResponse({ description: '❌ No autenticado - Token JWT requerido' })
   async getTopMovingItems(
     @Query('days') days?: string,
     @Query('limit') limit?: string
   ) {
-    const daysNum = days ? Number.parseInt(days, 10) : 30;
-    const limitNum = limit ? Number.parseInt(limit, 10) : 10;
-    return this.stockMovementsService.getTopMovingItems(daysNum, limitNum);
+    try {
+      const daysNum = days ? Number.parseInt(days, 10) : 30;
+      const limitNum = limit ? Number.parseInt(limit, 10) : 10;
+      return await this.stockMovementsService.getTopMovingItems(daysNum, limitNum);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al obtener artículos con más movimiento. Verifica que los parámetros sean válidos.');
+    }
   }
 }
