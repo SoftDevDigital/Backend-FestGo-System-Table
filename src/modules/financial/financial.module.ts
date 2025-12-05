@@ -12,3 +12,4 @@ import { FinancialMovementsService } from './financial-movements.service';
 export class FinancialModule {}
 
 
+

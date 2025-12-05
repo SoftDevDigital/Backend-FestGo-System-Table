@@ -16,11 +16,14 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<User | null> {
     try {
-      const result = await this.dynamoService.scan(
+      // Usar query con el índice email-index para búsqueda eficiente
+      const result = await this.dynamoService.query(
         this.tableName,
         'email = :email',
         undefined,
         { ':email': email },
+        undefined,
+        'email-index', // Usar el índice global secundario
         1
       );
       
