@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Query, Param, BadRequestException } from '
 import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth, ApiCreatedResponse, ApiBody, ApiBadRequestResponse, ApiNotFoundResponse, ApiParam } from '@nestjs/swagger';
 import { BillsService } from './bills.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
-import { CreateBillDto } from './dto/bill.dto';
+import { CreateBillDto, CreateDirectSaleDto } from './dto/bill.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Bill } from '../../common/entities/bill.entity';
 
@@ -11,11 +11,73 @@ import { Bill } from '../../common/entities/bill.entity';
 export class BillsController {
   constructor(private readonly billsService: BillsService) {}
 
+  @Post('direct-sale')
+  @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '💰 Venta directa (sin orden ni mesa) 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    **📚 FLUJO: Venta Directa / Takeaway - Paso Único**
+    
+    Crea una factura directamente sin necesidad de orden ni mesa. Ideal para ventas rápidas como:
+    - Cliente pide pizza y agua para llevar
+    - Venta rápida sin sentarse en mesa
+    - Takeaway/to-go
+    
+    **Proceso automático:**
+    1. ✅ Valida productos y disponibilidad
+    2. ✅ Calcula totales (subtotal, impuestos, descuentos)
+    3. ✅ Valida el monto pagado
+    4. ✅ Crea la factura con todos los items
+    5. ✅ Registra movimiento financiero de VENTA (para reportes)
+    6. ✅ Genera ticket completo
+    
+    **No requiere:**
+    - ❌ Orden previa
+    - ❌ Mesa asignada
+    - ❌ Cliente registrado (opcional)
+    
+    **Todo queda registrado:**
+    - ✅ Factura con items completos
+    - ✅ Movimiento financiero SALE
+    - ✅ Ticket disponible para imprimir
+    
+    **Ejemplo de uso:**
+    Cliente: "Quiero una pizza y 2 botellas de agua"
+    Empleado: Crea venta directa con esos productos → Factura → Ticket → Listo`
+  })
+  @ApiBody({ type: CreateDirectSaleDto })
+  @ApiCreatedResponse({ 
+    description: '✅ Venta directa creada exitosamente'
+  })
+  @ApiBadRequestResponse({ description: '❌ Error de validación, producto no disponible, o monto insuficiente' })
+  async createDirectSale(@Body() createDirectSaleDto: CreateDirectSaleDto): Promise<SuccessResponse<Bill>> {
+    try {
+      const bill = await this.billsService.createDirectSale(
+        createDirectSaleDto.items,
+        createDirectSaleDto.paymentMethod,
+        createDirectSaleDto.paidAmount,
+        createDirectSaleDto.cashierId,
+        createDirectSaleDto.customerId,
+        createDirectSaleDto.discountAmount,
+        createDirectSaleDto.notes,
+      );
+      return { success: true, message: 'Venta directa creada exitosamente', data: bill };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al crear la venta directa. Verifica que todos los datos sean correctos.');
+    }
+  }
+
   @Post()
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '🧾 Cerrar cuenta y crear factura 🔐',
+    summary: '🧾 Cerrar cuenta y crear factura (desde orden) 🔐',
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
@@ -159,9 +221,9 @@ export class BillsController {
   async getTicket(@Param('id') id: string) {
     const bill = await this.billsService.findOne(id);
     
-    // Los items están guardados en la factura (la orden ya fue eliminada)
+    // Los items están guardados en la factura
     if (!bill.items || bill.items.length === 0) {
-      throw new BadRequestException('La factura no contiene items. La orden original ya fue procesada.');
+      throw new BadRequestException('La factura no contiene items.');
     }
     
     // Obtener información adicional si existe
@@ -189,11 +251,16 @@ export class BillsController {
       }
     }
 
+    // Determinar tipo de venta
+    const isDirectSale = bill.orderId === 'DIRECT_SALE';
+    const saleType = isDirectSale ? 'Venta Directa' : (table ? `Mesa ${table.number}` : 'Sin mesa');
+
     // Estructura del ticket (toda la info viene de la factura)
     const ticket = {
       billNumber: bill.billNumber,
       orderNumber: bill.orderNumber || 'N/A',
       fecha: bill.createdAt,
+      tipoVenta: saleType,
       mesa: table ? table.number : null,
       cliente: customerName,
       productos: bill.items.map(item => ({

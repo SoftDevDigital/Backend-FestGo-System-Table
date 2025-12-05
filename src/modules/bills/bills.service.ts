@@ -1,10 +1,12 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
 import { Bill, PaymentDetail } from '../../common/entities/bill.entity';
-import { Order } from '../../common/entities/order.entity';
+import { Order, OrderItem } from '../../common/entities/order.entity';
 import { BillStatus, PaymentMethod, OrderStatus, MovementType } from '../../common/enums';
 import { v4 as uuidv4 } from 'uuid';
 import { FinancialMovementsService } from '../financial/financial-movements.service';
+import { ProductsService } from '../products/products.service';
+import { DirectSaleItemDto } from './dto/bill.dto';
 
 @Injectable()
 export class BillsService {
@@ -12,12 +14,16 @@ export class BillsService {
   private readonly tableName: string;
   private readonly ordersTableName: string;
 
+  private readonly productsTableName: string;
+
   constructor(
     private readonly dynamoService: DynamoDBService,
     private readonly financialMovementsService: FinancialMovementsService,
+    private readonly productsService: ProductsService,
   ) {
     this.tableName = this.dynamoService.getTableName('bills');
     this.ordersTableName = this.dynamoService.getTableName('orders');
+    this.productsTableName = this.dynamoService.getTableName('products');
   }
 
   async findAll() {
@@ -277,6 +283,138 @@ export class BillsService {
         error instanceof Error ? error.stack : undefined,
       );
       throw new BadRequestException('Error al obtener la factura.');
+    }
+  }
+
+  /**
+   * Crear factura directa sin orden (venta rápida/takeaway)
+   * Para clientes que compran productos sin sentarse en mesa
+   */
+  async createDirectSale(
+    items: DirectSaleItemDto[],
+    paymentMethod: PaymentMethod,
+    paidAmount: number,
+    cashierId?: string,
+    customerId?: string,
+    discountAmount?: number,
+    notes?: string,
+  ): Promise<Bill> {
+    try {
+      // Obtener productos y crear items
+      const billItems: OrderItem[] = [];
+      let subtotal = 0;
+
+      for (const itemDto of items) {
+        // Obtener producto
+        const product = await this.productsService.findOne(itemDto.productId);
+        
+        if (!product.isAvailable) {
+          throw new BadRequestException(`El producto ${product.name} no está disponible`);
+        }
+
+        const unitPrice = product.price;
+        const totalPrice = unitPrice * itemDto.quantity;
+        subtotal += totalPrice;
+
+        const billItem: OrderItem = {
+          id: uuidv4(),
+          productId: itemDto.productId,
+          productName: product.name,
+          quantity: itemDto.quantity,
+          unitPrice,
+          totalPrice,
+          preparationStatus: 'pending',
+        };
+
+        billItems.push(billItem);
+      }
+
+      // Calcular totales
+      const taxRate = 0.16; // 16% IVA
+      const taxAmount = subtotal * taxRate;
+      const finalDiscountAmount = discountAmount || 0;
+      const tipAmount = 0; // No hay propina en ventas directas
+      const serviceChargeAmount = 0;
+      const totalAmount = subtotal + taxAmount - finalDiscountAmount + tipAmount + serviceChargeAmount;
+
+      // Validar monto pagado
+      if (paidAmount < totalAmount) {
+        throw new BadRequestException(`El monto pagado ($${paidAmount}) es menor al total ($${totalAmount.toFixed(2)})`);
+      }
+
+      const changeAmount = paidAmount - totalAmount;
+
+      // Crear detalle de pago
+      const paymentDetail: PaymentDetail = {
+        id: uuidv4(),
+        method: paymentMethod,
+        amount: paidAmount,
+        processedAt: new Date().toISOString(),
+      };
+
+      // Generar número de factura
+      const billNumber = `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      // Crear factura directa (sin orden)
+      const bill: Bill = {
+        id: uuidv4(),
+        billNumber,
+        orderId: 'DIRECT_SALE', // Identificador especial para ventas directas
+        tableId: undefined, // No hay mesa
+        customerId: customerId,
+        cashierId: cashierId,
+        subtotal,
+        taxAmount,
+        taxRate,
+        discountAmount: finalDiscountAmount,
+        tipAmount,
+        serviceChargeAmount,
+        totalAmount,
+        paidAmount,
+        changeAmount: changeAmount > 0 ? changeAmount : undefined,
+        status: BillStatus.PAID,
+        paymentDetails: [paymentDetail],
+        // Guardar items directamente
+        items: billItems,
+        orderNumber: `DIRECT-${Date.now()}`,
+        notes: notes,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'system',
+        updatedBy: 'system',
+      };
+
+      // Remover campos undefined antes de guardar
+      const cleanBill = Object.fromEntries(
+        Object.entries(bill).filter(([_, value]) => value !== undefined)
+      ) as Bill;
+
+      await this.dynamoService.put(this.tableName, cleanBill);
+
+      // Registrar movimiento financiero de VENTA
+      await this.financialMovementsService.create({
+        type: MovementType.SALE,
+        amount: totalAmount,
+        description: `Venta directa - Factura ${billNumber}`,
+        category: 'ventas',
+        subcategory: 'venta_directa',
+        billId: bill.id,
+        paymentMethod: paymentMethod,
+        notes: notes || 'Venta directa sin orden',
+      });
+
+      this.logger.log(`Venta directa creada: ${billNumber} - Total: $${totalAmount.toFixed(2)} - Pagado: $${paidAmount.toFixed(2)}`);
+      
+      return cleanBill;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado creando venta directa: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException('Error al crear la venta directa. Verifica que todos los datos sean correctos.');
     }
   }
 }
