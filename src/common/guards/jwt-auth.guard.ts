@@ -22,12 +22,26 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    // Si es público, permitir acceso sin validar token
     if (isPublic) {
+      // Si es público, intentar validar el token si está presente (opcional)
+      // Esto permite que req.user esté disponible para validaciones condicionales
+      const request = context.switchToHttp().getRequest();
+      const authHeader = request.headers?.authorization;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        // Hay token, intentar validarlo (pero no fallar si es inválido)
+        try {
+          return super.canActivate(context);
+        } catch {
+          // Si el token es inválido pero el endpoint es público, permitir acceso sin user
+          return true;
+        }
+      }
+      
+      // No hay token, permitir acceso (es público)
       return true;
     }
 
-    // Si no es público, validar token normalmente
     return super.canActivate(context);
   }
 
@@ -45,10 +59,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     // Si no es público, aplicar lógica normal
     if (err || !user) {
-      // Lanzar UnauthorizedException sin stack trace innecesario
-      // El error será manejado por los filtros sin mostrar información técnica
-      const errorMessage = err?.message || 'Token inválido o expirado';
-      throw new UnauthorizedException(errorMessage);
+      throw err || new UnauthorizedException('Token inválido o expirado');
     }
     return user;
   }
