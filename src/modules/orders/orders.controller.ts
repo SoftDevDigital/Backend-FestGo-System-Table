@@ -19,13 +19,22 @@ export class OrdersController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Crea una nueva orden para una mesa. El empleado puede tomar la orden directamente sin necesidad de que el cliente esté registrado.
+    **📚 FLUJO: Toma de Orden y Facturación - Paso 1**
+    
+    Crea una nueva orden para una mesa. Este es el primer paso del flujo completo de toma de orden.
     
     **Flujo walk-in (cliente sin registro):**
     - El cliente se sienta en una mesa
     - El empleado crea la orden con solo tableId e items
     - No se requiere customerId (opcional)
     - El ticket mostrará "Consumidor Final" si no hay cliente
+    
+    **Próximos pasos del flujo:**
+    1. ✅ Crear orden (este endpoint)
+    2. ➡️ Agregar/actualizar items: PATCH /orders/:id/items
+    3. ➡️ Ver orden: GET /orders/:id
+    4. ➡️ Cerrar cuenta: POST /bills
+    5. ➡️ Obtener ticket: GET /bills/:id/ticket
     
     El empleado puede ir agregando items después con el endpoint PATCH /orders/:id/items.`
   })
@@ -50,11 +59,30 @@ export class OrdersController {
   @AdminOrEmployee()
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ 
-    summary: '➕ Agregar items a una orden 🔐',
+    summary: '➕ Agregar/Actualizar items en una orden 🔐',
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Agrega items adicionales a una orden existente. El total se recalcula automáticamente.`
+    **📚 FLUJO: Toma de Orden y Facturación - Paso 2**
+    
+    Agrega o actualiza items en una orden existente. 
+    
+    **Comportamiento:**
+    - Si el producto ya existe en la orden → actualiza la cantidad a la nueva cantidad
+    - Si el producto no existe → agrega como nuevo item
+    - El total se recalcula automáticamente
+    
+    **Ejemplo:**
+    - Orden tiene: Pizza x2
+    - Envías: Pizza x4
+    - Resultado: Pizza x4 (actualiza, no suma)
+    
+    **Próximos pasos del flujo:**
+    1. ✅ Crear orden: POST /orders
+    2. ✅ Agregar/actualizar items (este endpoint)
+    3. ➡️ Ver orden: GET /orders/:id
+    4. ➡️ Cerrar cuenta: POST /bills
+    5. ➡️ Obtener ticket: GET /bills/:id/ticket`
   })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
   @ApiBody({ type: AddItemsToOrderDto })
@@ -86,7 +114,18 @@ export class OrdersController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Quita un item de una orden existente. El total se recalcula automáticamente.`
+    **📚 FLUJO: Toma de Orden y Facturación - Opcional**
+    
+    Quita un item de una orden existente. Útil si el cliente cambia de opinión o hay un error.
+    El total se recalcula automáticamente.
+    
+    **Próximos pasos del flujo:**
+    1. ✅ Crear orden: POST /orders
+    2. ✅ Agregar/actualizar items: PATCH /orders/:id/items
+    3. ✅ Quitar item (este endpoint - opcional)
+    4. ➡️ Ver orden: GET /orders/:id
+    5. ➡️ Cerrar cuenta: POST /bills
+    6. ➡️ Obtener ticket: GET /bills/:id/ticket`
   })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
   @ApiParam({ name: 'itemId', description: 'ID del item a quitar' })
@@ -118,7 +157,16 @@ export class OrdersController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Obtiene los detalles completos de una orden específica.`
+    **📚 FLUJO: Toma de Orden y Facturación - Paso 3**
+    
+    Obtiene los detalles completos de una orden específica. Útil para verificar el total antes de cerrar la cuenta.
+    
+    **Próximos pasos del flujo:**
+    1. ✅ Crear orden: POST /orders
+    2. ✅ Agregar/actualizar items: PATCH /orders/:id/items
+    3. ✅ Ver orden (este endpoint)
+    4. ➡️ Cerrar cuenta: POST /bills
+    5. ➡️ Obtener ticket: GET /bills/:id/ticket`
   })
   @ApiParam({ name: 'id', description: 'ID de la orden' })
   @ApiOkResponse({ 

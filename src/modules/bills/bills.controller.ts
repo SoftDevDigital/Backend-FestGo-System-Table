@@ -19,18 +19,28 @@ export class BillsController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
-    Crea una factura a partir de una orden y procesa el pago. Funciona tanto para clientes registrados como para clientes walk-in (sin registro).
+    **📚 FLUJO: Toma de Orden y Facturación - Paso 4 (FINAL)**
     
-    **Flujo:**
-    1. Se obtiene la orden
-    2. Se calculan los totales (subtotal, impuestos, descuentos, propina)
-    3. Se valida el monto pagado
-    4. Se crea la factura (con todos los items guardados)
-    5. Se registra movimiento financiero de VENTA
-    6. Se ELIMINA la orden de la tabla Orders (ya cumplió su función)
-    7. La mesa se libera automáticamente
+    Crea una factura a partir de una orden y procesa el pago. Este es el paso final del flujo de orden.
+    Funciona tanto para clientes registrados como para clientes walk-in (sin registro).
     
-    **Nota:** Si la orden no tiene customerId (cliente walk-in), el ticket mostrará "Consumidor Final".`
+    **Proceso automático:**
+    1. ✅ Se obtiene la orden
+    2. ✅ Se calculan los totales (subtotal, impuestos, descuentos, propina)
+    3. ✅ Se valida el monto pagado
+    4. ✅ Se crea la factura (con todos los items guardados permanentemente)
+    5. ✅ Se registra movimiento financiero de VENTA (para reportes)
+    6. ✅ Se ELIMINA la orden de la tabla Orders (ya cumplió su función)
+    7. ✅ La mesa se libera automáticamente (status: available)
+    
+    **Nota:** Si la orden no tiene customerId (cliente walk-in), el ticket mostrará "Consumidor Final".
+    
+    **Próximos pasos del flujo:**
+    1. ✅ Crear orden: POST /orders
+    2. ✅ Agregar/actualizar items: PATCH /orders/:id/items
+    3. ✅ Ver orden: GET /orders/:id
+    4. ✅ Cerrar cuenta (este endpoint)
+    5. ➡️ Obtener ticket: GET /bills/:id/ticket`
   })
   @ApiBody({ type: CreateBillDto })
   @ApiCreatedResponse({ 
@@ -127,8 +137,19 @@ export class BillsController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin, Empleado
     
+    **📚 FLUJO: Toma de Orden y Facturación - Paso 5 (OPCIONAL)**
+    
     Obtiene el ticket completo de una factura con toda la información necesaria para imprimir.
-    Incluye: productos, cantidades, precios, totales, método de pago, etc.`
+    Incluye: productos, cantidades, precios, totales, método de pago, cambio, etc.
+    
+    **Flujo completo:**
+    1. ✅ Crear orden: POST /orders
+    2. ✅ Agregar/actualizar items: PATCH /orders/:id/items
+    3. ✅ Ver orden: GET /orders/:id
+    4. ✅ Cerrar cuenta: POST /bills
+    5. ✅ Obtener ticket (este endpoint - para imprimir)
+    
+    **Nota:** El ticket se genera desde la factura, que contiene todos los items guardados permanentemente.`
   })
   @ApiParam({ name: 'id', description: 'ID de la factura' })
   @ApiOkResponse({ 

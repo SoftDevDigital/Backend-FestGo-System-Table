@@ -20,8 +20,27 @@ export class FinancialMovementsController {
     description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
     **👥 Roles permitidos:** Solo Administrador
     
+    **📚 FLUJO: Reportes y Administración - Registrar Gastos**
+    
     Registra un movimiento financiero (gasto, pago a proveedor, salario, etc.).
-    ABSOLUTAMENTE TODO movimiento de dinero debe registrarse aquí.`
+    ABSOLUTAMENTE TODO movimiento de dinero debe registrarse aquí.
+    
+    **Flujo completo de administración:**
+    1. ➡️ Ver reportes: GET /reports/sales
+    2. ➡️ Registrar gastos (este endpoint)
+    3. ➡️ Ver movimientos: GET /financial-movements
+    4. ➡️ Ver resumen: GET /financial-movements/summary
+    
+    **Tipos de movimientos:**
+    - INVENTORY_PURCHASE: Compras a proveedores
+    - SALARY_PAYMENT: Pagos de salarios
+    - UTILITY_PAYMENT: Pagos de servicios
+    - TAX_PAYMENT: Pagos de impuestos
+    - EXPENSE: Gastos generales
+    - CASH_WITHDRAWAL: Retiros de efectivo
+    - CASH_DEPOSIT: Depósitos de efectivo
+    
+    **Nota:** Las ventas (SALE) se registran automáticamente al crear facturas.`
   })
   @ApiBody({
     schema: {

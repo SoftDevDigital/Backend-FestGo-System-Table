@@ -16,7 +16,15 @@ export class ReportsController {
     description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
     **👥 Roles permitidos:** Admin
     
-    Obtiene reporte detallado de ventas con análisis completo.
+    **📚 FLUJO: Reportes y Administración - Paso Principal**
+    
+    Obtiene reporte detallado de ventas con análisis completo. Incluye TODOS los movimientos financieros registrados.
+    
+    **Flujo completo de reportes:**
+    1. ✅ Ver reporte de ventas (este endpoint)
+    2. ➡️ Ver movimientos financieros: GET /financial-movements
+    3. ➡️ Ver resumen financiero: GET /financial-movements/summary
+    4. ➡️ Registrar gastos: POST /financial-movements
     
     **Incluye:**
     - Ventas por período (día, semana, mes)
@@ -25,7 +33,9 @@ export class ReportsController {
     - Ventas por método de pago
     - Top productos vendidos
     - Horarios pico de ventas
-    - Tendencias y gráficos`
+    - Tendencias y gráficos
+    - **Resumen financiero completo** (ingresos, gastos, neto)
+    - **Todos los movimientos registrados** (no se escapa ni un centavo)`
   })
   @ApiQuery({ 
     name: 'startDate', 

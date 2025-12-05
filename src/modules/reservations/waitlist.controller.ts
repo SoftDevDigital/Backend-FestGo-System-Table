@@ -33,7 +33,16 @@ export class WaitlistController {
     description: `**🔓 PÚBLICO - Sin autenticación requerida**
     **👥 Roles permitidos:** Cualquiera (público)
     
+    **📚 FLUJO: Lista de Espera - Paso 1**
+    
     Agrega un cliente a la lista de espera con cálculo automático de tiempo estimado.
+    
+    **Flujo completo de lista de espera:**
+    1. ✅ Agregar a lista (este endpoint)
+    2. ➡️ Ver lista de espera: GET /waitlist
+    3. ➡️ Actualizar entrada: PATCH /waitlist/:id (opcional)
+    4. ➡️ Convertir a reserva: Cuando hay mesa disponible
+    5. ➡️ Remover de lista: DELETE /waitlist/:id
     
     **Campos requeridos:**
     - partySize: Número de personas (1-20)

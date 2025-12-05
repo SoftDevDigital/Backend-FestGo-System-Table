@@ -40,7 +40,16 @@ export class ReservationsController {
     description: `**🔓 PÚBLICO - Sin autenticación requerida**
     **👥 Roles permitidos:** Cualquiera (público)
     
-    Crea una nueva reserva en el sistema. El sistema automáticamente:
+    **📚 FLUJO: Reserva de Mesa - Paso Principal**
+    
+    Crea una nueva reserva en el sistema. Este es el paso principal del flujo de reserva.
+    
+    **Flujo completo de reserva:**
+    1. ➡️ Ver disponibilidad: GET /reservations/availability/:date
+    2. ✅ Crear reserva (este endpoint)
+    3. ➡️ Ver reserva: GET /reservations/:id
+    4. ➡️ Actualizar reserva: PATCH /reservations/:id (opcional)
+    5. ➡️ Cancelar reserva: DELETE /reservations/:id (si es necesario)
     
     **Funcionalidades automáticas:**
     - Verifica disponibilidad de mesas para la fecha y hora solicitada

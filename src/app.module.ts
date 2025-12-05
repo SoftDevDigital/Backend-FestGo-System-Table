@@ -15,6 +15,7 @@ import { PrinterModule } from './modules/printer/printer.module';
 import { S3Module } from './modules/s3/s3.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { DocumentationModule } from './modules/documentation/documentation.module';
 import { FinancialModule } from './modules/financial/financial.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ValidationExceptionFilter } from './common/filters/validation-exception.filter';
@@ -50,6 +51,7 @@ import databaseConfig from './config/database.config';
     InventoryModule,
     ReservationsModule,
     FinancialModule,
+    DocumentationModule,
   ],
   controllers: [],
   providers: [
