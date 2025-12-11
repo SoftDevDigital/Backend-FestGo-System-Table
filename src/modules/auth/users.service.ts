@@ -1,5 +1,6 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
+import { CacheService } from '../../cache/cache.service';
 import { User } from '../../common/entities/user.entity';
 import { UserRole } from '../../common/enums';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,43 +10,63 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   private readonly tableName: string;
+  private readonly CACHE_TTL = 600; // 10 minutos
 
-  constructor(private readonly dynamoService: DynamoDBService) {
+  constructor(
+    private readonly dynamoService: DynamoDBService,
+    private readonly cacheService: CacheService,
+  ) {
     this.tableName = this.dynamoService.getTableName('users');
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    try {
-      // Usar query con el índice email-index para búsqueda eficiente
-      const result = await this.dynamoService.query(
-        this.tableName,
-        'email = :email',
-        undefined,
-        { ':email': email },
-        undefined,
-        'email-index', // Usar el índice global secundario
-        1
-      );
-      
-      if (result.items && result.items.length > 0) {
-        return result.items[0] as User;
-      }
-      
-      return null;
-    } catch (error) {
-      this.logger.error(`Error buscando usuario por email ${email}: ${error.message}`, error.stack);
-      throw new Error(`Error al buscar usuario: ${error.message || 'Error desconocido'}`);
-    }
+    const cacheKey = `user:email:${email}`;
+    
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          // Usar query con el índice email-index para búsqueda eficiente
+          const result = await this.dynamoService.query(
+            this.tableName,
+            'email = :email',
+            undefined,
+            { ':email': email },
+            undefined,
+            'email-index', // Usar el índice global secundario
+            1
+          );
+          
+          if (result.items && result.items.length > 0) {
+            return result.items[0] as User;
+          }
+          
+          return null;
+        } catch (error) {
+          this.logger.error(`Error buscando usuario por email ${email}: ${error.message}`, error.stack);
+          throw new Error(`Error al buscar usuario: ${error.message || 'Error desconocido'}`);
+        }
+      },
+      this.CACHE_TTL,
+    );
   }
 
   async findById(userId: string): Promise<User | null> {
-    try {
-      const user = await this.dynamoService.get(this.tableName, { id: userId });
-      return user as User | null;
-    } catch (error) {
-      this.logger.error(`Error buscando usuario por ID ${userId}: ${error.message}`, error.stack);
-      throw new Error(`Error al buscar usuario: ${error.message || 'Error desconocido'}`);
-    }
+    const cacheKey = `user:id:${userId}`;
+    
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          const user = await this.dynamoService.get(this.tableName, { id: userId });
+          return user as User | null;
+        } catch (error) {
+          this.logger.error(`Error buscando usuario por ID ${userId}: ${error.message}`, error.stack);
+          throw new Error(`Error al buscar usuario: ${error.message || 'Error desconocido'}`);
+        }
+      },
+      this.CACHE_TTL,
+    );
   }
 
   async create(userData: {
@@ -87,6 +108,10 @@ export class UsersService {
 
       await this.dynamoService.put(this.tableName, newUser);
       this.logger.log(`Usuario creado: ${newUser.email} con rol ${newUser.role}`);
+      
+      // Invalidar caché relacionado
+      await this.cacheService.del(`user:email:${newUser.email}`);
+      await this.cacheService.del(`user:id:${newUser.id}`);
       
       // No retornar la contraseña
       const { password, ...userWithoutPassword } = newUser;
