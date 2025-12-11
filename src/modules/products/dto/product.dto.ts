@@ -96,12 +96,12 @@ export class CreateProductDto {
   @IsBoolean()
   isAvailable?: boolean;
 
-  @ApiProperty({ description: 'Tiempo de preparación en minutos', example: 15 })
-  @IsNotEmpty()
+  @ApiPropertyOptional({ description: 'Tiempo de preparación en minutos', example: 15 })
+  @IsOptional()
   @IsNumber()
   @Min(1, { message: 'El tiempo de preparación debe ser al menos 1 minuto' })
   @Max(180, { message: 'El tiempo de preparación no puede exceder 180 minutos' })
-  preparationTime: number;
+  preparationTime?: number;
 
   @ApiPropertyOptional({ description: 'Calorías del producto' })
   @IsOptional()
