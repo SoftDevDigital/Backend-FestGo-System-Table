@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth, ApiCreatedResponse, ApiParam, ApiBody, ApiBadRequestResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { AdminOrEmployee } from '../../common/decorators/admin-employee.decorator';
-import { CreateOrderDto, AddItemsToOrderDto } from './dto/order.dto';
+import { CreateOrderDto, AddItemsToOrderDto, CreateOrderByCodesDto } from './dto/order.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Order } from '../../common/entities/order.entity';
 
@@ -52,6 +52,59 @@ export class OrdersController {
         throw error;
       }
       throw new BadRequestException('Error al crear la orden. Verifica que todos los datos sean correctos.');
+    }
+  }
+
+  @Post('by-codes')
+  @AdminOrEmployee()
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: '📝 Crear orden rápida por códigos 🔐',
+    description: `**🔐 PROTEGIDO - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Admin, Empleado
+    
+    **⚡ TOMA DE PEDIDO RÁPIDA**
+    
+    Crea una orden usando códigos de 3 letras + cantidad para agilizar la toma de pedidos.
+    
+    **Formato de códigos:**
+    - \`CCM2\` = 2 Coca Colas Medianas (código CCM, cantidad 2)
+    - \`PMG1\` = 1 Pizza Muzzarella Grande (código PMG, cantidad 1)
+    - \`CCM\` = 1 Coca Cola Mediana (si no se especifica cantidad, es 1)
+    
+    **Ejemplo de request:**
+    \`\`\`json
+    {
+      "tableId": "123e4567-e89b-12d3-a456-426614174000",
+      "codes": ["CCM2", "PMG1"],
+      "orderType": "dine_in"
+    }
+    \`\`\`
+    
+    **Cálculo automático:**
+    - Si CCM tiene precio $10: CCM2 = 2 × $10 = $20
+    - Si PMG tiene precio $20: PMG1 = 1 × $20 = $20
+    - Subtotal: $40
+    - IVA (16%): $6.40
+    - Total: $46.40
+    
+    El sistema agrupa automáticamente productos duplicados (ej: ["CCM2", "CCM1"] = CCM3).`
+  })
+  @ApiBody({ type: CreateOrderByCodesDto })
+  @ApiCreatedResponse({ 
+    description: '✅ Orden creada exitosamente'
+  })
+  @ApiBadRequestResponse({ description: '❌ Error de validación, código inválido o producto no disponible' })
+  @ApiNotFoundResponse({ description: '❌ Producto con código especificado no encontrado' })
+  async createByCodes(@Body() createOrderByCodesDto: CreateOrderByCodesDto): Promise<SuccessResponse<Order>> {
+    try {
+      const order = await this.ordersService.createByCodes(createOrderByCodesDto);
+      return { success: true, message: 'Orden creada exitosamente por códigos', data: order };
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Error al crear la orden. Verifica que todos los códigos sean correctos.');
     }
   }
 

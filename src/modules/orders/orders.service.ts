@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
 import { Order, OrderItem } from '../../common/entities/order.entity';
-import { CreateOrderDto, CreateOrderItemDto } from './dto/order.dto';
+import { CreateOrderDto, CreateOrderItemDto, CreateOrderByCodesDto } from './dto/order.dto';
 import { OrderStatus, TableStatus } from '../../common/enums';
 import { v4 as uuidv4 } from 'uuid';
 import { ProductsService } from '../products/products.service';
@@ -154,6 +154,153 @@ export class OrdersService {
       // Lanzar el error real para debugging
       throw new BadRequestException(
         `Error al crear la orden: ${error instanceof Error ? error.message : String(error)}. Verifica que todos los datos sean correctos.`
+      );
+    }
+  }
+
+  /**
+   * Parsea un código de producto con cantidad (ej: "CCM2" -> { code: "CCM", quantity: 2 })
+   */
+  private parseProductCode(codeString: string): { code: string; quantity: number } {
+    const trimmed = codeString.trim().toUpperCase();
+    
+    // Validar formato: 3 letras + número opcional
+    const match = trimmed.match(/^([A-Z]{3})(\d+)?$/);
+    if (!match) {
+      throw new BadRequestException(
+        `Código inválido: "${codeString}". Debe tener formato de 3 letras mayúsculas seguido opcionalmente de un número (ej: "CCM2" o "CCM")`
+      );
+    }
+
+    const code = match[1];
+    const quantity = match[2] ? parseInt(match[2], 10) : 1;
+
+    if (quantity < 1 || quantity > 100) {
+      throw new BadRequestException(
+        `Cantidad inválida en código "${codeString}". La cantidad debe estar entre 1 y 100.`
+      );
+    }
+
+    return { code, quantity };
+  }
+
+  /**
+   * Crea una orden a partir de códigos de productos (ej: ["CCM2", "PMG1"])
+   */
+  async createByCodes(createOrderByCodesDto: CreateOrderByCodesDto): Promise<Order> {
+    try {
+      const orderItems: OrderItem[] = [];
+      let subtotal = 0;
+      const processedCodes = new Map<string, number>(); // Para agrupar productos duplicados
+
+      // Parsear y agrupar códigos
+      for (const codeString of createOrderByCodesDto.codes) {
+        const { code, quantity } = this.parseProductCode(codeString);
+        
+        // Agrupar si el mismo código aparece múltiples veces
+        const currentQuantity = processedCodes.get(code) || 0;
+        processedCodes.set(code, currentQuantity + quantity);
+      }
+
+      // Buscar productos y crear items
+      for (const [code, totalQuantity] of processedCodes.entries()) {
+        const product = await this.productsService.findByCode(code);
+        
+        if (!product) {
+          throw new NotFoundException(`Producto con código "${code}" no encontrado`);
+        }
+
+        if (!product.isAvailable) {
+          throw new BadRequestException(`El producto ${product.name} (${code}) no está disponible`);
+        }
+
+        const unitPrice = product.price;
+        const totalPrice = unitPrice * totalQuantity;
+        subtotal += totalPrice;
+
+        const orderItem: OrderItem = {
+          id: uuidv4(),
+          productId: product.id,
+          productName: product.name,
+          variantId: undefined,
+          quantity: totalQuantity,
+          unitPrice,
+          totalPrice,
+          specialInstructions: undefined,
+          modifiers: undefined,
+          preparationStatus: 'pending',
+        };
+
+        orderItems.push(orderItem);
+      }
+
+      if (orderItems.length === 0) {
+        throw new BadRequestException('No se pudo procesar ningún producto. Verifica los códigos ingresados.');
+      }
+
+      // Calcular totales
+      const taxRate = 0.16; // 16% IVA (ajustable)
+      const taxAmount = subtotal * taxRate;
+      const discountAmount = createOrderByCodesDto.discountAmount || 0;
+      const tipAmount = createOrderByCodesDto.tipAmount || 0;
+      const totalAmount = subtotal + taxAmount - discountAmount + tipAmount;
+
+      // Generar número de orden
+      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      const order: Order = {
+        id: uuidv4(),
+        orderNumber,
+        tableId: createOrderByCodesDto.tableId,
+        customerId: createOrderByCodesDto.customerId,
+        waiterId: createOrderByCodesDto.waiterId,
+        items: orderItems,
+        subtotal,
+        taxAmount,
+        discountAmount,
+        tipAmount,
+        totalAmount,
+        status: OrderStatus.PENDING,
+        orderType: createOrderByCodesDto.orderType,
+        notes: createOrderByCodesDto.notes,
+        specialRequests: createOrderByCodesDto.specialRequests,
+        startedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: 'system',
+        updatedBy: 'system',
+      };
+
+      // Remover campos undefined antes de guardar en DynamoDB
+      const cleanOrder = Object.fromEntries(
+        Object.entries(order).filter(([_, value]) => value !== undefined)
+      ) as Order;
+
+      await this.dynamoService.put(this.tableName, cleanOrder);
+
+      // Actualizar estado de la mesa a "occupied" si es dine_in
+      if (createOrderByCodesDto.tableId && createOrderByCodesDto.orderType === 'dine_in') {
+        try {
+          await this.tablesService.update(createOrderByCodesDto.tableId, { status: TableStatus.OCCUPIED as any });
+          this.logger.log(`Mesa ${createOrderByCodesDto.tableId} actualizada a ocupada`);
+        } catch (error) {
+          this.logger.warn(`No se pudo actualizar el estado de la mesa: ${error.message}`);
+        }
+      }
+
+      this.logger.log(`Orden creada por códigos: ${orderNumber} - Total: $${totalAmount.toFixed(2)}`);
+      
+      return order;
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(
+        `Error inesperado creando orden por códigos: ${error.message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException(
+        `Error al crear la orden: ${error instanceof Error ? error.message : String(error)}. Verifica que todos los códigos sean correctos.`
       );
     }
   }

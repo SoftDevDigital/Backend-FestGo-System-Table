@@ -120,6 +120,66 @@ export class AddItemsToOrderDto {
   items: CreateOrderItemDto[];
 }
 
+export class CreateOrderByCodesDto {
+  @ApiPropertyOptional({ description: 'ID de la mesa' })
+  @IsOptional()
+  @IsUUID('4')
+  tableId?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'ID del cliente (OPCIONAL - para clientes walk-in sin registro, omitir este campo)',
+    example: '123e4567-e89b-12d3-a456-426614174000'
+  })
+  @IsOptional()
+  @IsUUID('4')
+  customerId?: string;
+
+  @ApiPropertyOptional({ description: 'ID del mesero' })
+  @IsOptional()
+  @IsUUID('4')
+  waiterId?: string;
+
+  @ApiProperty({ 
+    description: 'Códigos de productos con cantidad (ej: ["CCM2", "PMG1"])', 
+    example: ['CCM2', 'PMG1'],
+    type: [String]
+  })
+  @IsNotEmpty({ message: 'Debe incluir al menos un código de producto' })
+  @IsArray()
+  @ArrayNotEmpty({ message: 'Debe incluir al menos un código de producto' })
+  @IsString({ each: true, message: 'Cada código debe ser una cadena de texto' })
+  codes: string[];
+
+  @ApiProperty({ description: 'Tipo de orden', enum: ['dine_in', 'takeaway', 'delivery'] })
+  @IsNotEmpty()
+  @IsIn(['dine_in', 'takeaway', 'delivery'])
+  orderType: 'dine_in' | 'takeaway' | 'delivery';
+
+  @ApiPropertyOptional({ description: 'Notas generales del pedido' })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value?.trim())
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'Solicitudes especiales' })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => value?.trim())
+  specialRequests?: string;
+
+  @ApiPropertyOptional({ description: 'Descuento aplicado' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  discountAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Propina incluida' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  tipAmount?: number;
+}
+
 export class UpdateOrderDto extends PartialType(CreateOrderDto) {
   @ApiPropertyOptional({ description: 'Estado del pedido', enum: OrderStatus })
   @IsOptional()

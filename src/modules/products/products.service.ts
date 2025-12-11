@@ -56,6 +56,38 @@ export class ProductsService {
     return product;
   }
 
+  async findByCode(code: string): Promise<Product | null> {
+    try {
+      // Buscar producto por código (debe ser exactamente 3 letras mayúsculas)
+      const normalizedCode = code.trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(normalizedCode)) {
+        return null;
+      }
+
+      // Scan para buscar por código
+      const result = await this.dynamoService.scan(
+        this.tableName,
+        'code = :code',
+        undefined,
+        { ':code': normalizedCode },
+      );
+
+      if (!result.items || result.items.length === 0) {
+        return null;
+      }
+
+      // Si hay múltiples productos con el mismo código, advertir pero retornar el primero
+      if (result.items.length > 1) {
+        this.logger.warn(`Se encontraron ${result.items.length} productos con el código "${normalizedCode}". Se usará el primero.`);
+      }
+
+      return result.items[0] as Product;
+    } catch (error) {
+      this.logger.error(`Error buscando producto por código ${code}: ${error.message}`, error.stack);
+      return null;
+    }
+  }
+
   async create(createProductDto: CreateProductDto): Promise<Product> {
     try {
       const product: Product = {
