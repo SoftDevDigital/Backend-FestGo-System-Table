@@ -14,6 +14,7 @@ export interface Category extends BaseEntity {
 
 export interface Product extends BaseEntity {
   name: string;
+  code: string; // Código de 3 letras para pedidos rápidos (ej: CCM)
   description?: string;
   price: number;
   costPrice?: number;

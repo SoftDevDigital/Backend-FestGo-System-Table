@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { DynamoDBService } from '../../database/dynamodb.service';
 import { Product } from '../../common/entities/product.entity';
-import { CreateProductDto } from './dto/product.dto';
 import { ProductStatus } from '../../common/enums';
+import { CreateProductDto } from './dto/product.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -10,74 +10,58 @@ export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
   private readonly tableName: string;
 
-  constructor(private readonly dynamoService: DynamoDBService) {
+  constructor(
+    private readonly dynamoService: DynamoDBService,
+  ) {
     this.tableName = this.dynamoService.getTableName('products');
   }
 
-  async findAll(category?: string, availableOnly: boolean = true) {
-    try {
-      const result = await this.dynamoService.scan(this.tableName);
-      let products = result.items || [];
-
-      // Filtrar solo disponibles si se solicita
-      if (availableOnly) {
-        products = products.filter((p: any) => p.isAvailable === true && p.status === 'available');
-      }
-
-      // Filtrar por categoría si se proporciona
-      if (category) {
-        products = products.filter((p: any) => 
-          p.categoryId === category || 
-          p.category?.toLowerCase().includes(category.toLowerCase())
-        );
-      }
-
-      return products;
-    } catch (error) {
-      this.logger.error(
-        `Error inesperado obteniendo productos: ${error.message}`,
-        error instanceof Error ? error.stack : undefined,
+  async findAll(categoryId?: string, availableOnly: boolean = true): Promise<Product[]> {
+    let result;
+    
+    if (categoryId) {
+      // Usar query con índice category-index
+      result = await this.dynamoService.query(
+        this.tableName,
+        'categoryId = :categoryId',
+        undefined,
+        { ':categoryId': categoryId },
+        availableOnly ? 'isAvailable = :available' : undefined,
+        'category-index',
       );
-      throw new Error('Error al obtener productos. Por favor, intenta nuevamente.');
+    } else {
+      // Scan completo con filtro opcional
+      result = await this.dynamoService.scan(
+        this.tableName,
+        availableOnly ? 'isAvailable = :available' : undefined,
+        undefined,
+        availableOnly ? { ':available': true } : undefined,
+      );
     }
+    
+    return (result.items || []) as Product[];
   }
 
-  async findOne(id: string): Promise<any> {
-    try {
-      const product = await this.dynamoService.get(this.tableName, { id });
-      if (!product) {
-        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
-      }
-      return product;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      this.logger.error(
-        `Error inesperado obteniendo producto ${id}: ${error.message}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new NotFoundException(`Error al obtener el producto: ${error.message}`);
+  async findById(id: string): Promise<Product | null> {
+    const product = await this.dynamoService.get(this.tableName, { id });
+    return product as Product | null;
+  }
+
+  // Alias para compatibilidad con código existente
+  async findOne(id: string): Promise<Product> {
+    const product = await this.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
     }
+    return product;
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     try {
-      // Validar que la categoría exista (opcional, pero recomendado)
-      const categoriesTable = this.dynamoService.getTableName('categories');
-      try {
-        const category = await this.dynamoService.get(categoriesTable, { id: createProductDto.categoryId });
-        if (!category) {
-          throw new BadRequestException(`La categoría con ID ${createProductDto.categoryId} no existe`);
-        }
-      } catch (error) {
-        // Si la tabla de categorías no existe o hay error, continuar (no es crítico)
-        this.logger.warn(`No se pudo validar la categoría: ${error.message}`);
-      }
-
       const product: Product = {
         id: uuidv4(),
         name: createProductDto.name,
+        code: createProductDto.code,
         description: createProductDto.description,
         price: createProductDto.price,
         costPrice: createProductDto.costPrice,
@@ -94,11 +78,11 @@ export class ProductsService {
         ingredients: createProductDto.ingredients,
         nutritionalInfo: createProductDto.nutritionalInfo,
         tags: createProductDto.tags,
-        isVegan: createProductDto.isVegan || false,
-        isGlutenFree: createProductDto.isGlutenFree || false,
-        isSpicy: createProductDto.isSpicy || false,
+        isVegan: createProductDto.isVegan,
+        isGlutenFree: createProductDto.isGlutenFree,
+        isSpicy: createProductDto.isSpicy,
         spicyLevel: createProductDto.spicyLevel,
-        isPopular: createProductDto.isPopular || false,
+        isPopular: createProductDto.isPopular,
         discountPercentage: createProductDto.discountPercentage,
         minimumAge: createProductDto.minimumAge,
         createdAt: new Date().toISOString(),
@@ -108,18 +92,40 @@ export class ProductsService {
       };
 
       await this.dynamoService.put(this.tableName, product);
-      this.logger.log(`Producto creado: ${product.name} - Precio: $${product.price}`);
+      
+      this.logger.log(`Producto creado: ${product.name} (${product.id})`);
       
       return product;
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      this.logger.error(
-        `Error inesperado creando producto: ${error.message}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new BadRequestException('Error al crear el producto. Verifica que todos los datos sean correctos.');
+      this.logger.error(`Error creando producto: ${error.message}`, error.stack);
+      throw new BadRequestException(`Error al crear el producto: ${error.message}`);
     }
+  }
+
+  async update(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
+    const product = await this.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+    }
+
+    const updatedProduct: Product = {
+      ...product,
+      ...updateData,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'system',
+    };
+
+    await this.dynamoService.put(this.tableName, updatedProduct);
+    
+    return updatedProduct;
+  }
+
+  async delete(id: string): Promise<void> {
+    const product = await this.findById(id);
+    if (!product) {
+      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+    }
+
+    await this.dynamoService.delete(this.tableName, { id });
   }
 }

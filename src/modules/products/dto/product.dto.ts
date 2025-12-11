@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEnum, IsBoolean, IsArray, IsUrl, Min, Max, IsUUID, ValidateNested, ArrayNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEnum, IsBoolean, IsArray, IsUrl, Min, Max, IsUUID, ValidateNested, ArrayNotEmpty, Matches } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { ProductStatus } from '../../../common/enums';
@@ -41,6 +41,13 @@ export class CreateProductDto {
   @IsString()
   @Transform(({ value }) => value?.trim())
   name: string;
+
+  @ApiProperty({ description: 'Código de 3 letras para pedidos rápidos', example: 'CCM' })
+  @IsNotEmpty({ message: 'El código del producto es requerido' })
+  @IsString()
+  @Matches(/^[A-Z]{3}$/, { message: 'El código debe ser exactamente 3 letras mayúsculas' })
+  @Transform(({ value }) => value?.trim().toUpperCase())
+  code: string;
 
   @ApiPropertyOptional({ description: 'Descripción del producto' })
   @IsOptional()

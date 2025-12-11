@@ -17,6 +17,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { DocumentationModule } from './modules/documentation/documentation.module';
 import { FinancialModule } from './modules/financial/financial.module';
+import { CacheModule } from './cache/cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ValidationExceptionFilter } from './common/filters/validation-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -24,14 +25,16 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import appConfig from './config/app.config';
 import awsConfig from './config/aws.config';
 import databaseConfig from './config/database.config';
+import cacheConfig from './config/cache.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, awsConfig, databaseConfig],
+      load: [appConfig, awsConfig, databaseConfig, cacheConfig],
       envFilePath: ['.env.local', '.env'],
     }),
+    CacheModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute
