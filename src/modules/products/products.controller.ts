@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Param, Query, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
-import { CreateProductDto } from './dto/product.dto';
+import { CreateProductDto, ProductResponseDto } from './dto/product.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Product } from '../../common/entities/product.entity';
 
@@ -19,55 +19,42 @@ export class ProductsController {
     description: `**🔓 PÚBLICO - Sin autenticación requerida**
     **👥 Roles permitidos:** Cualquiera (público)
     
-    Retorna el menú completo del restaurante con todos los productos disponibles. Incluye información de precios, descripciones, alérgenos, información nutricional, etc.` 
+    Retorna el menú completo del restaurante con todos los productos disponibles. Incluye información de precios, descripciones, alérgenos, información nutricional, etc.
+    
+    **Filtros disponibles:**
+    - \`category\`: Puede ser el nombre de la categoría (ej: "pizzas") o el UUID de la categoría. La búsqueda por nombre es case-insensitive.
+    - \`available\`: Si es "true" o no se especifica, solo retorna productos disponibles. Si es "false", retorna todos los productos.` 
   })
   @ApiQuery({ 
     name: 'category', 
     required: false, 
-    description: 'Filtrar por categoría',
-    example: 'pizzas'
+    description: 'Filtrar por categoría (nombre o UUID). Ejemplos: "pizzas" o "42088847-c2a6-401f-854c-1e1a336626c5"',
+    example: 'pizzas',
+    type: String
   })
   @ApiQuery({ 
     name: 'available', 
     required: false, 
-    description: 'Filtrar solo productos disponibles',
-    example: true,
-    type: Boolean
+    description: 'Filtrar solo productos disponibles. Valores: "true" (por defecto) o "false"',
+    example: 'true',
+    type: String,
+    enum: ['true', 'false']
   })
   @ApiOkResponse({ 
-    description: '✅ Menú obtenido exitosamente',
-    schema: {
-      example: {
-        success: true,
-        statusCode: 200,
-        message: 'Operación completada exitosamente',
-        data: [
-          {
-            id: '123e4567-e89b-12d3-a456-426614174000',
-            name: 'Pizza Margherita',
-            description: 'Pizza clásica con tomate, mozzarella y albahaca',
-            price: 15.99,
-            categoryId: 'cat-123',
-            isAvailable: true,
-            preparationTime: 15,
-            allergens: ['gluten', 'lactose'],
-            nutritionalInfo: {
-              calories: 250,
-              protein: 12,
-              carbs: 30,
-              fat: 8
-            }
-          }
-        ]
-      }
-    }
+    description: '✅ Lista de productos obtenida exitosamente',
+    type: [ProductResponseDto]
   })
-  findAll(
+  async findAll(
     @Query('category') category?: string,
     @Query('available') available?: string
   ) {
-    const availableOnly = available !== 'false'; // Por defecto true
-    return this.productsService.findAll(category, availableOnly);
+    try {
+      // Convertir string a boolean: "true" -> true, "false" -> false, undefined -> true (por defecto)
+      const availableOnly = available === undefined || available === 'true' || available === '';
+      return await this.productsService.findAll(category, availableOnly);
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener productos: ${error.message}`);
+    }
   }
 
   @Get(':id')
@@ -79,26 +66,41 @@ export class ProductsController {
     
     Obtiene los detalles completos de un producto específico del menú.` 
   })
-  @ApiParam({ name: 'id', description: 'ID del producto', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiParam({ name: 'id', description: 'ID del producto (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiOkResponse({ 
-    description: '✅ Producto obtenido exitosamente'
+    description: '✅ Producto obtenido exitosamente',
+    type: ProductResponseDto
   })
+  @ApiBadRequestResponse({ description: '❌ Producto no encontrado' })
   async findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
 
   @Post()
   @AdminOnly()
+  @ApiExtraModels(SuccessResponse, ProductResponseDto)
   @ApiOperation({ 
     summary: '➕ Crear nuevo producto 👑',
     description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
     **👥 Roles permitidos:** Solo Administrador
     
-    Crea un nuevo producto en el menú del restaurante.`
+    Crea un nuevo producto en el menú del restaurante. El código debe ser exactamente 3 letras mayúsculas (ej: "CCG").`
   })
   @ApiBody({ type: CreateProductDto })
   @ApiCreatedResponse({ 
-    description: '✅ Producto creado exitosamente'
+    description: '✅ Producto creado exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              $ref: getSchemaPath(ProductResponseDto),
+            },
+          },
+        },
+      ],
+    },
   })
   @ApiBadRequestResponse({ description: '❌ Error de validación o categoría no encontrada' })
   async create(@Body() createProductDto: CreateProductDto): Promise<SuccessResponse<Product>> {

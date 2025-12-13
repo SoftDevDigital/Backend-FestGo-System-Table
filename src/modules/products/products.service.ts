@@ -4,6 +4,7 @@ import { Product } from '../../common/entities/product.entity';
 import { ProductStatus } from '../../common/enums';
 import { CreateProductDto } from './dto/product.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { CategoriesService } from './categories.service';
 
 @Injectable()
 export class ProductsService {
@@ -12,34 +13,101 @@ export class ProductsService {
 
   constructor(
     private readonly dynamoService: DynamoDBService,
+    private readonly categoriesService: CategoriesService,
   ) {
     this.tableName = this.dynamoService.getTableName('products');
   }
 
-  async findAll(categoryId?: string, availableOnly: boolean = true): Promise<Product[]> {
-    let result;
-    
-    if (categoryId) {
-      // Usar query con índice category-index
-      result = await this.dynamoService.query(
-        this.tableName,
-        'categoryId = :categoryId',
-        undefined,
-        { ':categoryId': categoryId },
-        availableOnly ? 'isAvailable = :available' : undefined,
-        'category-index',
+  /**
+   * Verifica si un string es un UUID válido
+   */
+  private isUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  }
+
+  /**
+   * Resuelve el categoryId desde un nombre de categoría o UUID
+   */
+  private async resolveCategoryId(category: string): Promise<string | null> {
+    try {
+      // Si es un UUID, usarlo directamente
+      if (this.isUUID(category)) {
+        return category;
+      }
+
+      // Si no es UUID, buscar por nombre
+      const categories = await this.categoriesService.findAll();
+      const foundCategory = categories.find(
+        (cat: any) => cat.name?.toLowerCase() === category.toLowerCase()
       );
-    } else {
-      // Scan completo con filtro opcional
-      result = await this.dynamoService.scan(
-        this.tableName,
-        availableOnly ? 'isAvailable = :available' : undefined,
-        undefined,
-        availableOnly ? { ':available': true } : undefined,
-      );
+
+      if (!foundCategory) {
+        this.logger.warn(`Categoría "${category}" no encontrada`);
+        return null;
+      }
+
+      return foundCategory.id;
+    } catch (error) {
+      this.logger.error(`Error resolviendo categoría "${category}": ${error.message}`, error.stack);
+      return null;
     }
-    
-    return (result.items || []) as Product[];
+  }
+
+  async findAll(category?: string, availableOnly: boolean = true): Promise<Product[]> {
+    try {
+      let result;
+      let categoryId: string | null = null;
+
+      // Si se proporciona una categoría, resolver su ID
+      if (category) {
+        categoryId = await this.resolveCategoryId(category);
+        if (!categoryId) {
+          // Si no se encuentra la categoría, retornar array vacío
+          this.logger.warn(`Categoría "${category}" no encontrada, retornando productos vacíos`);
+          return [];
+        }
+      }
+
+      // Preparar valores de expresión
+      const expressionAttributeValues: Record<string, any> = {};
+      
+      if (categoryId) {
+        expressionAttributeValues[':categoryId'] = categoryId;
+      }
+      
+      if (availableOnly) {
+        expressionAttributeValues[':available'] = true;
+      }
+
+      // Construir filter expression para available
+      const filterExpression = availableOnly ? 'isAvailable = :available' : undefined;
+
+      if (categoryId) {
+        // Usar query con índice category-index
+        result = await this.dynamoService.query(
+          this.tableName,
+          'categoryId = :categoryId',
+          undefined,
+          expressionAttributeValues,
+          filterExpression,
+          'category-index',
+        );
+      } else {
+        // Scan completo con filtro opcional
+        result = await this.dynamoService.scan(
+          this.tableName,
+          filterExpression,
+          undefined,
+          expressionAttributeValues,
+        );
+      }
+      
+      return (result.items || []) as Product[];
+    } catch (error) {
+      this.logger.error(`Error obteniendo productos: ${error.message}`, error.stack);
+      throw new BadRequestException(`Error al obtener productos: ${error.message}`);
+    }
   }
 
   async findById(id: string): Promise<Product | null> {

@@ -3,6 +3,157 @@ import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { ProductStatus } from '../../../common/enums';
 
+// DTOs de respuesta para Swagger
+export class NutritionalInfoResponseDto {
+  @ApiPropertyOptional({ description: 'Proteína en gramos', example: 12 })
+  protein?: number;
+
+  @ApiPropertyOptional({ description: 'Carbohidratos en gramos', example: 30 })
+  carbs?: number;
+
+  @ApiPropertyOptional({ description: 'Grasa en gramos', example: 8 })
+  fat?: number;
+
+  @ApiPropertyOptional({ description: 'Fibra en gramos', example: 2 })
+  fiber?: number;
+
+  @ApiPropertyOptional({ description: 'Sodio en miligramos', example: 500 })
+  sodium?: number;
+}
+
+export class ProductResponseDto {
+  @ApiProperty({ description: 'ID del producto', example: '123e4567-e89b-12d3-a456-426614174000' })
+  id: string;
+
+  @ApiProperty({ description: 'Nombre del producto', example: 'Pizza Margherita' })
+  name: string;
+
+  @ApiProperty({ description: 'Código de 3 letras', example: 'CCM' })
+  code: string;
+
+  @ApiPropertyOptional({ description: 'Descripción del producto' })
+  description?: string;
+
+  @ApiProperty({ description: 'Precio del producto', example: 15.99 })
+  price: number;
+
+  @ApiPropertyOptional({ description: 'Precio de costo', example: 8.50 })
+  costPrice?: number;
+
+  @ApiProperty({ description: 'ID de la categoría', example: '42088847-c2a6-401f-854c-1e1a336626c5' })
+  categoryId: string;
+
+  @ApiPropertyOptional({ description: 'SKU del producto' })
+  sku?: string;
+
+  @ApiPropertyOptional({ description: 'Código de barras' })
+  barcode?: string;
+
+  @ApiProperty({ description: 'Estado del producto', enum: ProductStatus, example: ProductStatus.AVAILABLE })
+  status: ProductStatus;
+
+  @ApiPropertyOptional({ description: 'URL de la imagen principal' })
+  imageUrl?: string;
+
+  @ApiPropertyOptional({ description: 'URLs de imágenes adicionales', type: [String] })
+  images?: string[];
+
+  @ApiProperty({ description: 'Disponibilidad del producto', example: true })
+  isAvailable: boolean;
+
+  @ApiPropertyOptional({ description: 'Tiempo de preparación en minutos', example: 15 })
+  preparationTime?: number;
+
+  @ApiPropertyOptional({ description: 'Calorías del producto', example: 250 })
+  calories?: number;
+
+  @ApiPropertyOptional({ description: 'Lista de alérgenos', type: [String], example: ['gluten', 'lactose'] })
+  allergens?: string[];
+
+  @ApiPropertyOptional({ description: 'Lista de ingredientes', type: [String] })
+  ingredients?: string[];
+
+  @ApiPropertyOptional({ description: 'Información nutricional', type: NutritionalInfoResponseDto })
+  nutritionalInfo?: NutritionalInfoResponseDto;
+
+  @ApiPropertyOptional({ description: 'Etiquetas del producto', type: [String] })
+  tags?: string[];
+
+  @ApiPropertyOptional({ description: 'Es vegano', example: false })
+  isVegan?: boolean;
+
+  @ApiPropertyOptional({ description: 'Es libre de gluten', example: false })
+  isGlutenFree?: boolean;
+
+  @ApiPropertyOptional({ description: 'Es picante', example: false })
+  isSpicy?: boolean;
+
+  @ApiPropertyOptional({ description: 'Nivel de picante (1-5)', example: 2 })
+  spicyLevel?: number;
+
+  @ApiPropertyOptional({ description: 'Es producto popular', example: false })
+  isPopular?: boolean;
+
+  @ApiPropertyOptional({ description: 'Porcentaje de descuento', example: 0 })
+  discountPercentage?: number;
+
+  @ApiPropertyOptional({ description: 'Edad mínima requerida', example: 0 })
+  minimumAge?: number;
+
+  @ApiProperty({ description: 'Fecha de creación', example: '2024-01-01T00:00:00.000Z' })
+  createdAt: string;
+
+  @ApiProperty({ description: 'Fecha de actualización', example: '2024-01-01T00:00:00.000Z' })
+  updatedAt: string;
+
+  @ApiPropertyOptional({ description: 'Creado por', example: 'system' })
+  createdBy?: string;
+
+  @ApiPropertyOptional({ description: 'Actualizado por', example: 'system' })
+  updatedBy?: string;
+}
+
+export class CategoryResponseDto {
+  @ApiProperty({ description: 'ID de la categoría', example: '123e4567-e89b-12d3-a456-426614174000' })
+  id: string;
+
+  @ApiProperty({ description: 'Nombre de la categoría', example: 'Pizzas' })
+  name: string;
+
+  @ApiPropertyOptional({ description: 'Descripción de la categoría' })
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'URL de la imagen' })
+  imageUrl?: string;
+
+  @ApiProperty({ description: 'Estado activo', example: true })
+  isActive: boolean;
+
+  @ApiProperty({ description: 'Orden de visualización', example: 1 })
+  sortOrder: number;
+
+  @ApiPropertyOptional({ description: 'ID de categoría padre' })
+  parentCategoryId?: string;
+
+  @ApiPropertyOptional({ description: 'Color representativo', example: '#FF6B6B' })
+  color?: string;
+
+  @ApiPropertyOptional({ description: 'Icono representativo', example: '🍕' })
+  icon?: string;
+
+  @ApiProperty({ description: 'Fecha de creación', example: '2024-01-01T00:00:00.000Z' })
+  createdAt: string;
+
+  @ApiProperty({ description: 'Fecha de actualización', example: '2024-01-01T00:00:00.000Z' })
+  updatedAt: string;
+
+  @ApiPropertyOptional({ description: 'Creado por', example: 'system' })
+  createdBy?: string;
+
+  @ApiPropertyOptional({ description: 'Actualizado por', example: 'system' })
+  updatedBy?: string;
+}
+
 export class NutritionalInfoDto {
   @ApiPropertyOptional({ description: 'Proteína en gramos' })
   @IsOptional()

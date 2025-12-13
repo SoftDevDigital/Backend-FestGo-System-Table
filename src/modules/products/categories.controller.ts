@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Param, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CreateCategoryDto } from './dto/product.dto';
+import { CreateCategoryDto, CategoryResponseDto } from './dto/product.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Category } from '../../common/entities/product.entity';
 
@@ -14,6 +14,7 @@ export class CategoriesController {
 
   @Get()
   @Public()
+  @ApiExtraModels(SuccessResponse, CategoryResponseDto)
   @ApiOperation({ 
     summary: '📂 Obtener todas las categorías 🔓',
     description: `**🔓 PÚBLICO - Sin autenticación requerida**
@@ -22,7 +23,20 @@ export class CategoriesController {
     Retorna todas las categorías de productos del restaurante, ordenadas por sortOrder.`
   })
   @ApiOkResponse({ 
-    description: '✅ Lista de categorías obtenida exitosamente'
+    description: '✅ Lista de categorías obtenida exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              type: 'array',
+              items: { $ref: getSchemaPath(CategoryResponseDto) },
+            },
+          },
+        },
+      ],
+    },
   })
   async findAll() {
     const categories = await this.categoriesService.findAll();
@@ -31,6 +45,7 @@ export class CategoriesController {
 
   @Get(':id')
   @Public()
+  @ApiExtraModels(SuccessResponse, CategoryResponseDto)
   @ApiOperation({ 
     summary: '📂 Obtener categoría por ID 🔓',
     description: `**🔓 PÚBLICO - Sin autenticación requerida**
@@ -38,9 +53,21 @@ export class CategoriesController {
     
     Obtiene los detalles de una categoría específica.`
   })
-  @ApiParam({ name: 'id', description: 'ID de la categoría', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiParam({ name: 'id', description: 'ID de la categoría (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
   @ApiOkResponse({ 
-    description: '✅ Categoría obtenida exitosamente'
+    description: '✅ Categoría obtenida exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              $ref: getSchemaPath(CategoryResponseDto),
+            },
+          },
+        },
+      ],
+    },
   })
   @ApiNotFoundResponse({ description: '❌ Categoría no encontrada' })
   async findOne(@Param('id') id: string): Promise<SuccessResponse<Category>> {
@@ -50,6 +77,7 @@ export class CategoriesController {
 
   @Post()
   @AdminOnly()
+  @ApiExtraModels(SuccessResponse, CategoryResponseDto)
   @ApiOperation({ 
     summary: '➕ Crear nueva categoría 👑',
     description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
@@ -59,7 +87,19 @@ export class CategoriesController {
   })
   @ApiBody({ type: CreateCategoryDto })
   @ApiCreatedResponse({ 
-    description: '✅ Categoría creada exitosamente'
+    description: '✅ Categoría creada exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              $ref: getSchemaPath(CategoryResponseDto),
+            },
+          },
+        },
+      ],
+    },
   })
   @ApiBadRequestResponse({ description: '❌ Error de validación o categoría padre no encontrada' })
   async create(@Body() createCategoryDto: CreateCategoryDto): Promise<SuccessResponse<Category>> {
@@ -74,6 +114,7 @@ export class CategoriesController {
     }
   }
 }
+
 
 
 

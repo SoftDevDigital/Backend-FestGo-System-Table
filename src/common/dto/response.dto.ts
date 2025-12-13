@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SuccessResponse<T = any> {
   @ApiProperty({ description: 'Success status', example: true })
@@ -7,7 +7,7 @@ export class SuccessResponse<T = any> {
   @ApiProperty({ description: 'Success message', example: 'Operation completed successfully' })
   message: string;
 
-  @ApiProperty({ description: 'Response data', required: false })
+  @ApiPropertyOptional({ description: 'Response data' })
   data?: T;
 
   constructor(message: string, data?: T) {
