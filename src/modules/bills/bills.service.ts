@@ -78,14 +78,14 @@ export class BillsService {
         throw new BadRequestException('Ya existe una factura para esta orden');
       }
 
-      // Calcular totales
-      const taxRate = 0.16; // 16% IVA
+      // Calcular totales (sin impuestos)
       const subtotal = orderData.subtotal;
-      const taxAmount = subtotal * taxRate;
+      const taxAmount = 0; // Sin impuestos
+      const taxRate = 0; // Sin impuestos
       const finalDiscountAmount = discountAmount || orderData.discountAmount || 0;
       const finalTipAmount = tipAmount || orderData.tipAmount || 0;
       const serviceChargeAmount = 0; // Opcional
-      const totalAmount = subtotal + taxAmount - finalDiscountAmount + finalTipAmount + serviceChargeAmount;
+      const totalAmount = subtotal - finalDiscountAmount + finalTipAmount + serviceChargeAmount;
 
       // Validar monto pagado
       if (paidAmount < totalAmount) {
@@ -202,7 +202,7 @@ export class BillsService {
     const bill = await this.dynamoService.get(this.tableName, { id: billId }) as Bill;
     
     const finalTipAmount = tipAmount || bill.tipAmount || 0;
-    const newTotalAmount = bill.subtotal + bill.taxAmount - (bill.discountAmount || 0) + finalTipAmount;
+    const newTotalAmount = bill.subtotal - (bill.discountAmount || 0) + finalTipAmount;
 
     if (paidAmount < newTotalAmount) {
       throw new BadRequestException(`El monto pagado es menor al total`);
@@ -329,13 +329,13 @@ export class BillsService {
         billItems.push(billItem);
       }
 
-      // Calcular totales
-      const taxRate = 0.16; // 16% IVA
-      const taxAmount = subtotal * taxRate;
+      // Calcular totales (sin impuestos)
+      const taxAmount = 0; // Sin impuestos
+      const taxRate = 0; // Sin impuestos
       const finalDiscountAmount = discountAmount || 0;
       const tipAmount = 0; // No hay propina en ventas directas
       const serviceChargeAmount = 0;
-      const totalAmount = subtotal + taxAmount - finalDiscountAmount + tipAmount + serviceChargeAmount;
+      const totalAmount = subtotal - finalDiscountAmount + tipAmount + serviceChargeAmount;
 
       // Validar monto pagado
       if (paidAmount < totalAmount) {

@@ -90,12 +90,11 @@ export class OrdersService {
         orderItems.push(orderItem);
       }
 
-      // Calcular totales
-      const taxRate = 0.16; // 16% IVA (ajustable)
-      const taxAmount = subtotal * taxRate;
+      // Calcular totales (sin impuestos)
+      const taxAmount = 0; // Sin impuestos
       const discountAmount = createOrderDto.discountAmount || 0;
       const tipAmount = createOrderDto.tipAmount || 0;
-      const totalAmount = subtotal + taxAmount - discountAmount + tipAmount;
+      const totalAmount = subtotal - discountAmount + tipAmount;
 
       // Generar número de orden
       const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
@@ -238,12 +237,11 @@ export class OrdersService {
         throw new BadRequestException('No se pudo procesar ningún producto. Verifica los códigos ingresados.');
       }
 
-      // Calcular totales
-      const taxRate = 0.16; // 16% IVA (ajustable)
-      const taxAmount = subtotal * taxRate;
+      // Calcular totales (sin impuestos)
+      const taxAmount = 0; // Sin impuestos
       const discountAmount = createOrderByCodesDto.discountAmount || 0;
       const tipAmount = createOrderByCodesDto.tipAmount || 0;
-      const totalAmount = subtotal + taxAmount - discountAmount + tipAmount;
+      const totalAmount = subtotal - discountAmount + tipAmount;
 
       // Generar número de orden
       const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
@@ -374,13 +372,12 @@ export class OrdersService {
         }
       }
 
-      // Recalcular totales de la orden
+      // Recalcular totales de la orden (sin impuestos)
       const newSubtotal = order.subtotal + additionalSubtotal;
-      const taxRate = 0.16;
-      const newTaxAmount = newSubtotal * taxRate;
+      const newTaxAmount = 0; // Sin impuestos
       const discountAmount = order.discountAmount || 0;
       const tipAmount = order.tipAmount || 0;
-      const newTotalAmount = newSubtotal + newTaxAmount - discountAmount + tipAmount;
+      const newTotalAmount = newSubtotal - discountAmount + tipAmount;
 
       const updatedOrder: Order = {
         ...order,
@@ -431,13 +428,12 @@ export class OrdersService {
       const removedItem = order.items[itemIndex];
       const updatedItems = order.items.filter(item => item.id !== itemId);
 
-      // Recalcular totales
+      // Recalcular totales (sin impuestos)
       const newSubtotal = order.subtotal - removedItem.totalPrice;
-      const taxRate = 0.16;
-      const newTaxAmount = newSubtotal * taxRate;
+      const newTaxAmount = 0; // Sin impuestos
       const discountAmount = order.discountAmount || 0;
       const tipAmount = order.tipAmount || 0;
-      const newTotalAmount = newSubtotal + newTaxAmount - discountAmount + tipAmount;
+      const newTotalAmount = newSubtotal - discountAmount + tipAmount;
 
       const updatedOrder: Order = {
         ...order,

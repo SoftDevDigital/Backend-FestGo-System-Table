@@ -28,7 +28,7 @@ export class BillsController {
     
     **Proceso automático:**
     1. ✅ Valida productos y disponibilidad
-    2. ✅ Calcula totales (subtotal, impuestos, descuentos)
+    2. ✅ Calcula totales (subtotal, descuentos)
     3. ✅ Valida el monto pagado
     4. ✅ Crea la factura con todos los items
     5. ✅ Registra movimiento financiero de VENTA (para reportes)
@@ -88,7 +88,7 @@ export class BillsController {
     
     **Proceso automático:**
     1. ✅ Se obtiene la orden
-    2. ✅ Se calculan los totales (subtotal, impuestos, descuentos, propina)
+    2. ✅ Se calculan los totales (subtotal, descuentos, propina)
     3. ✅ Se valida el monto pagado
     4. ✅ Se crea la factura (con todos los items guardados permanentemente)
     5. ✅ Se registra movimiento financiero de VENTA (para reportes)
