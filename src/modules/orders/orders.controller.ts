@@ -85,8 +85,7 @@ export class OrdersController {
     - Si CCM tiene precio $10: CCM2 = 2 × $10 = $20
     - Si PMG tiene precio $20: PMG1 = 1 × $20 = $20
     - Subtotal: $40
-    - IVA (16%): $6.40
-    - Total: $46.40
+    - Total: $40 (sin impuestos)
     
     El sistema agrupa automáticamente productos duplicados (ej: ["CCM2", "CCM1"] = CCM3).`
   })
