@@ -48,6 +48,7 @@ export interface Bill extends BaseEntity {
   items?: OrderItem[];
   orderNumber?: string; // Número de orden original
   waiterId?: string; // ID del mesero que atendió
+  orderType?: 'dine_in' | 'takeaway' | 'delivery'; // Tipo de orden original (para liberar mesa correctamente)
 }
 
 export interface Receipt {

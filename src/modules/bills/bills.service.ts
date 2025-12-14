@@ -2,10 +2,11 @@ import { Injectable, Logger, BadRequestException, NotFoundException } from '@nes
 import { DynamoDBService } from '../../database/dynamodb.service';
 import { Bill, PaymentDetail } from '../../common/entities/bill.entity';
 import { Order, OrderItem } from '../../common/entities/order.entity';
-import { BillStatus, PaymentMethod, OrderStatus, MovementType } from '../../common/enums';
+import { BillStatus, PaymentMethod, OrderStatus, MovementType, TableStatus } from '../../common/enums';
 import { v4 as uuidv4 } from 'uuid';
 import { FinancialMovementsService } from '../financial/financial-movements.service';
 import { ProductsService } from '../products/products.service';
+import { TablesService } from '../tables/tables.service';
 import { DirectSaleItemDto } from './dto/bill.dto';
 
 @Injectable()
@@ -20,10 +21,26 @@ export class BillsService {
     private readonly dynamoService: DynamoDBService,
     private readonly financialMovementsService: FinancialMovementsService,
     private readonly productsService: ProductsService,
+    private readonly tablesService: TablesService,
   ) {
     this.tableName = this.dynamoService.getTableName('bills');
     this.ordersTableName = this.dynamoService.getTableName('orders');
     this.productsTableName = this.dynamoService.getTableName('products');
+  }
+
+  /**
+   * Libera una mesa si corresponde (solo para órdenes dine_in)
+   */
+  private async releaseTableIfNeeded(tableId: string | undefined, orderType: string | undefined): Promise<void> {
+    // Solo liberar mesa si es dine_in y tiene tableId
+    if (tableId && orderType === 'dine_in') {
+      try {
+        await this.tablesService.update(tableId, { status: TableStatus.AVAILABLE as any });
+        this.logger.log(`Mesa ${tableId} liberada automáticamente después de facturar`);
+      } catch (error) {
+        this.logger.warn(`No se pudo liberar la mesa ${tableId}: ${error.message}`);
+      }
+    }
   }
 
   async findAll() {
@@ -128,6 +145,7 @@ export class BillsService {
         items: orderData.items, // Items completos con productos, cantidades, precios
         orderNumber: orderData.orderNumber,
         waiterId: orderData.waiterId,
+        orderType: orderData.orderType, // Guardar orderType para liberar mesa correctamente
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         createdBy: 'system',
@@ -140,6 +158,21 @@ export class BillsService {
       ) as Bill;
 
       await this.dynamoService.put(this.tableName, cleanBill);
+
+      // Actualizar estado de la orden a COMPLETED antes de eliminar (para auditoría)
+      try {
+        const completedOrder: Order = {
+          ...orderData,
+          status: OrderStatus.COMPLETED,
+          completedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'system',
+        };
+        await this.dynamoService.put(this.ordersTableName, completedOrder);
+        this.logger.log(`Orden ${orderId} actualizada a COMPLETED antes de eliminar`);
+      } catch (error) {
+        this.logger.warn(`No se pudo actualizar el estado de la orden a COMPLETED: ${error.message}`);
+      }
 
       // Registrar movimiento financiero de VENTA
       // ABSOLUTAMENTE TODO movimiento de dinero debe registrarse
@@ -156,27 +189,13 @@ export class BillsService {
         notes: `Factura generada para orden ${orderData.orderNumber}`,
       });
 
+      // Liberar mesa automáticamente si corresponde (solo dine_in)
+      await this.releaseTableIfNeeded(orderData.tableId, orderData.orderType);
+
       // ELIMINAR la orden de la tabla Orders
       // La orden ya cumplió su función, toda la info está en la factura
       await this.dynamoService.delete(this.ordersTableName, { id: orderId });
       this.logger.log(`Orden ${orderId} eliminada después de crear factura ${billNumber}`);
-
-      // Actualizar estado de la mesa a "available" si existe
-      if (orderData.tableId) {
-        try {
-          const tablesTableName = this.dynamoService.getTableName('tables');
-          await this.dynamoService.update(
-            tablesTableName,
-            { id: orderData.tableId },
-            'SET #status = :status, #updatedAt = :updatedAt',
-            { '#status': 'status', '#updatedAt': 'updatedAt' },
-            { ':status': 'available', ':updatedAt': new Date().toISOString() }
-          );
-          this.logger.log(`Mesa ${orderData.tableId} actualizada a disponible`);
-        } catch (error) {
-          this.logger.warn(`No se pudo actualizar el estado de la mesa: ${error.message}`);
-        }
-      }
 
       this.logger.log(`Factura creada: ${billNumber} - Total: $${totalAmount.toFixed(2)} - Pagado: $${paidAmount.toFixed(2)}`);
       
@@ -211,6 +230,20 @@ export class BillsService {
       throw new BadRequestException(`El monto pagado es menor al total`);
     }
 
+    // Obtener orderType de la factura (ya guardado) o intentar obtenerlo de la orden si aún existe
+    let orderType: string | undefined = bill.orderType;
+    if (!orderType && bill.orderId && bill.orderId !== 'DIRECT_SALE') {
+      try {
+        const order = await this.dynamoService.get(this.ordersTableName, { id: bill.orderId });
+        if (order) {
+          orderType = (order as Order).orderType;
+        }
+      } catch (error) {
+        // La orden ya fue eliminada, esto es normal
+        this.logger.debug(`Orden ${bill.orderId} ya fue eliminada, usando orderType de la factura si existe`);
+      }
+    }
+
     const paymentDetail: PaymentDetail = {
       id: uuidv4(),
       method: paymentMethod,
@@ -238,6 +271,11 @@ export class BillsService {
     ) as Bill;
 
     await this.dynamoService.put(this.tableName, cleanBill);
+
+    // Liberar mesa automáticamente si corresponde (solo dine_in)
+    // Esto es importante porque updateBillPayment se llama cuando se completa un pago pendiente
+    await this.releaseTableIfNeeded(bill.tableId, orderType);
+
     return cleanBill;
   }
 
