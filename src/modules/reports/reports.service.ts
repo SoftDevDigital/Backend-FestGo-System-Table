@@ -33,9 +33,9 @@ export class ReportsService {
         });
       }
 
-      // Calcular totales
+      // Calcular totales (sin impuestos)
       const totalSales = filteredBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
-      const totalTax = filteredBills.reduce((sum, bill) => sum + bill.taxAmount, 0);
+      const totalTax = 0; // Sin impuestos
       const totalDiscounts = filteredBills.reduce((sum, bill) => sum + (bill.discountAmount || 0), 0);
       const totalTips = filteredBills.reduce((sum, bill) => sum + (bill.tipAmount || 0), 0);
 

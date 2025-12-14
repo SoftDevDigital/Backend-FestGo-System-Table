@@ -48,7 +48,7 @@ export class PrinterService {
         modificadores: item.modifiers || [],
       })) || [],
       subtotal: bill?.subtotal || order?.subtotal || 0,
-      impuestos: bill?.taxAmount || order?.taxAmount || 0,
+      impuestos: 0, // Sin impuestos
       descuento: bill?.discountAmount || order?.discountAmount || 0,
       propina: bill?.tipAmount || order?.tipAmount || 0,
       total: bill?.totalAmount || order?.totalAmount || 0,

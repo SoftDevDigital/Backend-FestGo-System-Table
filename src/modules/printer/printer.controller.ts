@@ -58,8 +58,8 @@ export class PrinterController {
               }
             ],
             subtotal: 31.98,
-            taxAmount: 5.12,
-            totalAmount: 37.10
+            taxAmount: 0,
+            totalAmount: 31.98
           },
           table: { number: 5 },
           customer: {
@@ -86,8 +86,8 @@ export class PrinterController {
           },
           productos: [],
           subtotal: 31.98,
-          impuestos: 5.12,
-          total: 37.10
+          impuestos: 0,
+          total: 31.98
         }
       }
     }

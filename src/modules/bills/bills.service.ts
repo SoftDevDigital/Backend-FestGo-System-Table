@@ -202,6 +202,9 @@ export class BillsService {
     const bill = await this.dynamoService.get(this.tableName, { id: billId }) as Bill;
     
     const finalTipAmount = tipAmount || bill.tipAmount || 0;
+    // Asegurar que taxAmount siempre sea 0 (sin impuestos)
+    const taxAmount = 0;
+    const taxRate = 0;
     const newTotalAmount = bill.subtotal - (bill.discountAmount || 0) + finalTipAmount;
 
     if (paidAmount < newTotalAmount) {
@@ -217,6 +220,8 @@ export class BillsService {
 
     const updatedBill: Bill = {
       ...bill,
+      taxAmount, // Siempre 0 (sin impuestos)
+      taxRate, // Siempre 0 (sin impuestos)
       tipAmount: finalTipAmount,
       totalAmount: newTotalAmount,
       paidAmount: bill.paidAmount + paidAmount,

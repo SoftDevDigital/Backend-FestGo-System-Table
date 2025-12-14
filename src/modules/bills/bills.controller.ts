@@ -271,7 +271,7 @@ export class BillsController {
         instrucciones: item.specialInstructions || '',
       })),
       subtotal: bill.subtotal,
-      impuestos: bill.taxAmount,
+      impuestos: 0, // Sin impuestos
       descuento: bill.discountAmount || 0,
       propina: bill.tipAmount || 0,
       total: bill.totalAmount,
