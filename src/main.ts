@@ -49,10 +49,8 @@ async function bootstrap() {
       // Lista de orígenes permitidos
       const allowedOrigins = [
         corsOrigin,
-        'http://localhost:3004',
-        'https://api.festgo-bar.com',
+        'https://festgo-bar.com',
         'http://localhost:3005',
-        'http://localhost:3000',
       ];
       
       if (allowedOrigins.includes(origin)) {
