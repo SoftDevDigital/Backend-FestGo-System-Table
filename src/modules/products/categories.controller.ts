@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Param, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Param, Body, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiExtraModels, ApiNoContentResponse, getSchemaPath } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { CreateCategoryDto, CategoryResponseDto } from './dto/product.dto';
+import { CreateCategoryDto, UpdateCategoryDto, CategoryResponseDto } from './dto/product.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Category } from '../../common/entities/product.entity';
 
@@ -111,6 +111,75 @@ export class CategoriesController {
         throw error;
       }
       throw new BadRequestException('Error al crear la categoría. Verifica que todos los datos sean correctos.');
+    }
+  }
+
+  @Put(':id')
+  @AdminOnly()
+  @ApiExtraModels(SuccessResponse, CategoryResponseDto)
+  @ApiOperation({ 
+    summary: '✏️ Actualizar categoría 👑',
+    description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Solo Administrador
+    
+    Actualiza una categoría existente. Puedes actualizar cualquier campo de la categoría. Los campos no incluidos en el body mantendrán sus valores actuales.`
+  })
+  @ApiParam({ name: 'id', description: 'ID de la categoría a actualizar (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiBody({ type: UpdateCategoryDto })
+  @ApiOkResponse({ 
+    description: '✅ Categoría actualizada exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              $ref: getSchemaPath(CategoryResponseDto),
+            },
+          },
+        },
+      ],
+    },
+  })
+  @ApiBadRequestResponse({ description: '❌ Error de validación o categoría no encontrada' })
+  @ApiNotFoundResponse({ description: '❌ Categoría no encontrada' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateCategoryDto: UpdateCategoryDto
+  ): Promise<SuccessResponse<Category>> {
+    try {
+      const category = await this.categoriesService.update(id, updateCategoryDto);
+      return { success: true, message: 'Categoría actualizada exitosamente', data: category };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Error al actualizar la categoría: ${error.message}`);
+    }
+  }
+
+  @Delete(':id')
+  @AdminOnly()
+  @ApiOperation({ 
+    summary: '🗑️ Eliminar categoría 👑',
+    description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Solo Administrador
+    
+    Elimina permanentemente una categoría del sistema. **IMPORTANTE:** No se puede eliminar una categoría si hay productos asociados a ella. Primero debes eliminar o cambiar la categoría de los productos que la usan.`
+  })
+  @ApiParam({ name: 'id', description: 'ID de la categoría a eliminar (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiNoContentResponse({ description: '✅ Categoría eliminada exitosamente' })
+  @ApiBadRequestResponse({ description: '❌ No se puede eliminar: hay productos asociados a esta categoría' })
+  @ApiNotFoundResponse({ description: '❌ Categoría no encontrada' })
+  async remove(@Param('id') id: string): Promise<SuccessResponse<null>> {
+    try {
+      await this.categoriesService.delete(id);
+      return { success: true, message: 'Categoría eliminada exitosamente', data: null };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Error al eliminar la categoría: ${error.message}`);
     }
   }
 }

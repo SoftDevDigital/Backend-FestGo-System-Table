@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Param, Query, Body, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiExtraModels, getSchemaPath } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiParam, ApiBody, ApiCreatedResponse, ApiBadRequestResponse, ApiExtraModels, ApiNoContentResponse, getSchemaPath } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
-import { CreateProductDto, ProductResponseDto } from './dto/product.dto';
+import { CreateProductDto, UpdateProductDto, ProductResponseDto } from './dto/product.dto';
 import { SuccessResponse } from '../../common/dto/response.dto';
 import { Product } from '../../common/entities/product.entity';
 
@@ -112,6 +112,73 @@ export class ProductsController {
         throw error;
       }
       throw new BadRequestException('Error al crear el producto. Verifica que todos los datos sean correctos.');
+    }
+  }
+
+  @Put(':id')
+  @AdminOnly()
+  @ApiExtraModels(SuccessResponse, ProductResponseDto)
+  @ApiOperation({ 
+    summary: '✏️ Actualizar producto 👑',
+    description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Solo Administrador
+    
+    Actualiza un producto existente. Puedes actualizar cualquier campo del producto. Los campos no incluidos en el body mantendrán sus valores actuales.`
+  })
+  @ApiParam({ name: 'id', description: 'ID del producto a actualizar (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiBody({ type: UpdateProductDto })
+  @ApiOkResponse({ 
+    description: '✅ Producto actualizado exitosamente',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(SuccessResponse) },
+        {
+          properties: {
+            data: {
+              $ref: getSchemaPath(ProductResponseDto),
+            },
+          },
+        },
+      ],
+    },
+  })
+  @ApiBadRequestResponse({ description: '❌ Error de validación o producto no encontrado' })
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto
+  ): Promise<SuccessResponse<Product>> {
+    try {
+      const product = await this.productsService.update(id, updateProductDto);
+      return { success: true, message: 'Producto actualizado exitosamente', data: product };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Error al actualizar el producto: ${error.message}`);
+    }
+  }
+
+  @Delete(':id')
+  @AdminOnly()
+  @ApiOperation({ 
+    summary: '🗑️ Eliminar producto 👑',
+    description: `**👑 SOLO ADMIN - Autenticación JWT requerida**
+    **👥 Roles permitidos:** Solo Administrador
+    
+    Elimina permanentemente un producto del menú. Esta acción no se puede deshacer.`
+  })
+  @ApiParam({ name: 'id', description: 'ID del producto a eliminar (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiNoContentResponse({ description: '✅ Producto eliminado exitosamente' })
+  @ApiBadRequestResponse({ description: '❌ Producto no encontrado' })
+  async remove(@Param('id') id: string): Promise<SuccessResponse<null>> {
+    try {
+      await this.productsService.delete(id);
+      return { success: true, message: 'Producto eliminado exitosamente', data: null };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Error al eliminar el producto: ${error.message}`);
     }
   }
 }
