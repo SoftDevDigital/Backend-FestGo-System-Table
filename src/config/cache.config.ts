@@ -8,6 +8,10 @@ export default registerAs('cache', () => ({
     tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
     connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT, 10) || 10000,
     retryStrategy: (times: number) => {
+      // Después de 5 intentos, dejar de intentar reconectar
+      if (times > 5) {
+        return null; // null detiene los reintentos
+      }
       const delay = Math.min(times * 50, 2000);
       return delay;
     },

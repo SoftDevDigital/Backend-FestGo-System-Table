@@ -9,6 +9,9 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private readonly keyPrefix: string;
   private readonly defaultTtl: number;
   private enabled: boolean;
+  private connectionAttempts: number = 0;
+  private readonly maxConnectionAttempts: number = 5;
+  private connectionFailed: boolean = false;
 
   constructor(private configService: ConfigService) {
     this.keyPrefix = this.configService.get<string>('cache.keyPrefix', 'festgo:');
@@ -41,30 +44,67 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       // Event listeners
       this.client.on('connect', () => {
         this.logger.log('✅ Conectado a Redis');
+        this.connectionAttempts = 0;
+        this.connectionFailed = false;
       });
 
       this.client.on('ready', () => {
         this.logger.log('✅ Redis listo para recibir comandos');
+        this.connectionAttempts = 0;
+        this.connectionFailed = false;
       });
 
       this.client.on('error', (error) => {
-        this.logger.error(`❌ Error en Redis: ${error.message}`, error.stack);
+        this.connectionAttempts++;
+        
+        // Si es un error de conexión y hemos intentado muchas veces, deshabilitar caché
+        if (error.message.includes('ECONNREFUSED') || error.message.includes('Connection is closed')) {
+          if (this.connectionAttempts >= this.maxConnectionAttempts && !this.connectionFailed) {
+            this.connectionFailed = true;
+            this.enabled = false;
+            this.logger.warn(
+              `⚠️  Redis no disponible después de ${this.maxConnectionAttempts} intentos. ` +
+              `Caché deshabilitado. La aplicación continuará funcionando sin caché. ` +
+              `Para habilitar el caché, instala Redis o configura CACHE_ENABLED=false en las variables de entorno.`
+            );
+            
+            // Cerrar la conexión y deshabilitar reconexión
+            if (this.client) {
+              this.client.disconnect(false);
+            }
+            return;
+          }
+        }
+        
+        // Solo loguear errores si no hemos deshabilitado el caché
+        if (!this.connectionFailed) {
+          this.logger.error(`❌ Error en Redis: ${error.message}`);
+        }
       });
 
       this.client.on('close', () => {
-        this.logger.warn('⚠️  Conexión a Redis cerrada');
+        if (!this.connectionFailed) {
+          this.logger.warn('⚠️  Conexión a Redis cerrada');
+        }
       });
 
       this.client.on('reconnecting', () => {
-        this.logger.log('🔄 Reconectando a Redis...');
+        if (!this.connectionFailed && this.connectionAttempts < this.maxConnectionAttempts) {
+          this.logger.log(`🔄 Reconectando a Redis... (intento ${this.connectionAttempts + 1}/${this.maxConnectionAttempts})`);
+        }
       });
 
       await this.client.connect();
       this.logger.log('🚀 Servicio de caché inicializado correctamente');
     } catch (error) {
-      this.logger.error(`❌ Error inicializando Redis: ${error.message}`, error.stack);
+      this.logger.error(`❌ Error inicializando Redis: ${error.message}`);
       // No lanzar error para que la app pueda funcionar sin caché
       this.enabled = false;
+      this.connectionFailed = true;
+      this.logger.warn(
+        '⚠️  Caché deshabilitado. La aplicación continuará funcionando sin caché. ' +
+        'Para habilitar el caché, instala Redis o configura CACHE_ENABLED=false en las variables de entorno.'
+      );
     }
   }
 
